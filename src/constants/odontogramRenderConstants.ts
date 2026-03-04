@@ -1,0 +1,40 @@
+/**
+ * Constantes para el renderizado del odontograma
+ */
+
+export const TOOTH_DIMENSIONS = {
+  CROWN_HEIGHT: 40,
+  ROOT_HEIGHT: 40,
+  TOOTH_SPACING: 70,
+} as const;
+
+export const LABEL_Y_OFFSETS = {
+  ADULTOS_SUPERIOR: -87,
+  NINOS_SUPERIOR: -107,
+  NINOS_INFERIOR: 150,
+  ADULTOS_INFERIOR: 188,
+} as const;
+
+export const SYMBOL_Y_OFFSETS = {
+  CROSS_SQUARE_UPPER: -60,
+  CROSS_SQUARE_LOWER: 100,
+  ZIGZAG_UPPER: -60,
+  ZIGZAG_LOWER: 100,
+  HORIZONTAL_UPPER: -75,
+  HORIZONTAL_LOWER: 115,
+  DOUBLE_LINE_UPPER_1: -65,
+  DOUBLE_LINE_LOWER_1: 105,
+  DOUBLE_LINE_UPPER_2: -55,
+  DOUBLE_LINE_LOWER_2: 95,
+} as const;
+
+export const CIRCLE_RADIUS = {
+  FUSION: 22,
+  GEMINACION: 18,
+  SUPERNUMERARIO: 16,
+} as const;
+
+export const ARROW_SIZES = {
+  HEAD: 7,
+  LENGTH: 30,
+} as const;

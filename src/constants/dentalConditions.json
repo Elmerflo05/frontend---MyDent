@@ -1,0 +1,561 @@
+{
+  "metadata": {
+    "source": "Colegio Odontológico del Perú - Normativa Oficial",
+    "version": "2.0",
+    "lastUpdated": "2025-10-14",
+    "totalConditions": 47
+  },
+  "symbolTypes": [
+    "aspa",
+    "line",
+    "arrow",
+    "circle",
+    "square",
+    "double-line",
+    "zigzag",
+    "parenthesis",
+    "triangle",
+    "curve-arrow",
+    "cross-square",
+    "double-circle",
+    "fill",
+    "outline",
+    "text"
+  ],
+  "colorTypes": [
+    "blue",
+    "red"
+  ],
+  "categories": [
+    {
+      "id": "patologia",
+      "label": "Patologías",
+      "icon": "🦷"
+    },
+    {
+      "id": "tratamiento",
+      "label": "Tratamientos",
+      "icon": "⚕️"
+    },
+    {
+      "id": "protesis",
+      "label": "Prótesis",
+      "icon": "🔧"
+    },
+    {
+      "id": "anomalia",
+      "label": "Anomalías",
+      "icon": "⚠️"
+    },
+    {
+      "id": "ortodoncia",
+      "label": "Ortodoncia",
+      "icon": "🔩"
+    }
+  ],
+  "officialColors": {
+    "blue": "#1e40af",
+    "red": "#dc2626"
+  },
+  "conditions": [
+    {
+      "id": "caries-mb",
+      "label": "Mancha Blanca (Caries Incipiente)",
+      "category": "patologia",
+      "symbolType": "fill",
+      "color": "red",
+      "abbreviation": "MB",
+      "description": "Lesión dibujada en rojo en las superficies comprometidas - A nivel del esmalte",
+      "specifications": "Caries inicial reversible con flúor",
+      "fillSurfaces": true
+    },
+    {
+      "id": "caries-ce",
+      "label": "Caries de Esmalte",
+      "category": "patologia",
+      "symbolType": "fill",
+      "color": "red",
+      "abbreviation": "CE",
+      "description": "Lesión dibujada en rojo en las superficies comprometidas - A nivel del esmalte",
+      "specifications": "Caries limitada al esmalte dental",
+      "fillSurfaces": true
+    },
+    {
+      "id": "caries-cd",
+      "label": "Caries de Dentina",
+      "category": "patologia",
+      "symbolType": "fill",
+      "color": "red",
+      "abbreviation": "CD",
+      "description": "Lesión dibujada en rojo en las superficies comprometidas - A nivel de la dentina",
+      "specifications": "Caries que ha penetrado la dentina",
+      "fillSurfaces": true
+    },
+    {
+      "id": "caries-cdp",
+      "label": "Caries con Compromiso Pulpar",
+      "category": "patologia",
+      "symbolType": "fill",
+      "color": "red",
+      "abbreviation": "CDP",
+      "description": "Lesión dibujada en rojo en las superficies comprometidas - Compromiso de pulpa",
+      "specifications": "Caries profunda con afectación pulpar. Requiere tratamiento de conducto",
+      "fillSurfaces": true
+    },
+    {
+      "id": "fractura",
+      "label": "Fractura",
+      "category": "patologia",
+      "symbolType": "line",
+      "color": "red",
+      "description": "Línea recta roja según dirección de la fractura (corona o raíz)"
+    },
+    {
+      "id": "remanente-radicular",
+      "label": "Remanente Radicular",
+      "category": "patologia",
+      "symbolType": "text",
+      "color": "red",
+      "abbreviation": "RR",
+      "description": "Letras RR sobre la raíz correspondiente"
+    },
+    {
+      "id": "dde-hipoplasia",
+      "label": "Hipoplasia del Esmalte",
+      "category": "patologia",
+      "symbolType": "text",
+      "color": "red",
+      "abbreviation": "HP",
+      "description": "Letras HP en recuadro. Defecto en la cantidad de esmalte",
+      "specifications": "Identificar superficies dentarias afectadas"
+    },
+    {
+      "id": "dde-hipomineralizacion",
+      "label": "Hipo mineralización del Esmalte",
+      "category": "patologia",
+      "symbolType": "text",
+      "color": "red",
+      "abbreviation": "HM",
+      "description": "Letras HM en recuadro. Defecto en la calidad del esmalte",
+      "specifications": "Identificar superficies dentarias afectadas"
+    },
+    {
+      "id": "dde-opacidades",
+      "label": "Opacidades del Esmalte",
+      "category": "patologia",
+      "symbolType": "text",
+      "color": "red",
+      "abbreviation": "O",
+      "description": "Letra O en recuadro. Cambios en la translucidez del esmalte",
+      "specifications": "Identificar superficies dentarias afectadas"
+    },
+    {
+      "id": "dde-decoloracion",
+      "label": "Decoloración del Esmalte",
+      "category": "patologia",
+      "symbolType": "text",
+      "color": "red",
+      "abbreviation": "D",
+      "description": "Letra D en recuadro. Alteración del color del esmalte",
+      "specifications": "Identificar superficies dentarias afectadas"
+    },
+    {
+      "id": "fluorosis",
+      "label": "Fluorosis Dental",
+      "category": "patologia",
+      "symbolType": "text",
+      "color": "red",
+      "abbreviation": "F",
+      "description": "Letra F en recuadro. Hipomineralización por exceso de flúor",
+      "specifications": "Detallar clasificación utilizada y grado de severidad"
+    },
+    {
+      "id": "diente-ausente",
+      "label": "Diente Ausente",
+      "category": "anomalia",
+      "symbolType": "aspa",
+      "color": "blue",
+      "description": "Aspa (X) sobre la figura del diente"
+    },
+    {
+      "id": "edentulo-total",
+      "label": "Edéntulo Total",
+      "category": "anomalia",
+      "symbolType": "line",
+      "color": "blue",
+      "description": "Línea recta horizontal azul sobre coronas ausentes en el arco correspondiente"
+    },
+    {
+      "id": "supernumerario",
+      "label": "Supernumerario",
+      "category": "anomalia",
+      "symbolType": "circle",
+      "color": "blue",
+      "abbreviation": "S",
+      "description": "Letra S azul encerrada en una circunferencia entre los ápices de dientes adyacentes"
+    },
+    {
+      "id": "pieza-en-erupcion",
+      "label": "Pieza Dentaria en Erupción",
+      "category": "anomalia",
+      "symbolType": "zigzag",
+      "color": "blue",
+      "description": "Flecha en zigzag de color azul dirigida hacia el plano oclusal de la pieza dentaria",
+      "specifications": "Indica proceso de erupción dental activo"
+    },
+    {
+      "id": "restauracion",
+      "label": "Restauración Definitiva",
+      "category": "tratamiento",
+      "symbolType": "fill",
+      "color": "blue",
+      "description": "Pintar totalmente la superficie comprometida según estado (azul buen estado, rojo mal estado)",
+      "specifications": "Sigla del material empleado (mayúsculas). Carillas solo en cara vestibular de dientes anteriores",
+      "fillSurfaces": true,
+      "colorConditional": {
+        "goodState": "blue",
+        "badState": "red"
+      },
+      "abbreviations": {
+        "AM": "Amalgama",
+        "R": "Resina",
+        "IV": "Ionómero de vidrio",
+        "IM": "Incrustación metálica",
+        "IE": "Incrustación estética",
+        "C": "Carilla estética"
+      }
+    },
+    {
+      "id": "restauracion-temporal",
+      "label": "Restauración Temporal",
+      "category": "tratamiento",
+      "symbolType": "outline",
+      "color": "red",
+      "description": "Contorno rojo de la restauración, siguiendo su forma (solo borde, sin relleno)"
+    },
+    {
+      "id": "sellantes",
+      "label": "Sellantes",
+      "category": "tratamiento",
+      "symbolType": "outline",
+      "color": "blue",
+      "description": "Se dibuja el recorrido del sellante según forma de fosas y fisuras",
+      "specifications": "Azul (buen estado), Rojo (mal estado). En mal estado se dibuja azul + rojo en área afectada",
+      "colorConditional": {
+        "goodState": "blue",
+        "badState": "red"
+      }
+    },
+    {
+      "id": "fosas-fisuras-profundas",
+      "label": "Fosas y Fisuras Profundas",
+      "category": "anomalia",
+      "symbolType": "text",
+      "color": "blue",
+      "abbreviation": "FFP",
+      "description": "Letras FFP en recuadro. Característica anatómica que requiere vigilancia"
+    },
+    {
+      "id": "corona-definitiva",
+      "label": "Corona Definitiva",
+      "category": "tratamiento",
+      "symbolType": "square",
+      "color": "blue",
+      "description": "Cuadrado que encierra la corona de la pieza tratada (azul buen estado, rojo mal estado)",
+      "specifications": "Registrar color del metal (dorado o plateado). Sigla del tipo de corona en recuadro",
+      "colorConditional": {
+        "goodState": "blue",
+        "badState": "red"
+      },
+      "abbreviations": {
+        "CM": "Corona Metálica (solo metálica)",
+        "CF": "Corona Fenestrada (ventana vestibular)",
+        "CMC": "Corona Metal Cerámica",
+        "3/4": "Corona parcial metálica 3/4",
+        "4/5": "Corona parcial metálica 4/5",
+        "7/8": "Corona parcial metálica 7/8",
+        "CV": "Corona Veneer (metálica con frente estético)",
+        "CJ": "Corona Jacket (estética libre de metal)"
+      }
+    },
+    {
+      "id": "corona-temporal",
+      "label": "Corona Temporal",
+      "category": "tratamiento",
+      "symbolType": "square",
+      "color": "red",
+      "description": "Cuadrado rojo que encierra la corona de la pieza tratada"
+    },
+    {
+      "id": "tratamiento-pulpar",
+      "label": "Tratamiento Pulpar",
+      "category": "tratamiento",
+      "symbolType": "line",
+      "color": "blue",
+      "description": "Línea recta vertical en la raíz tratada (azul buen estado, rojo mal estado)",
+      "specifications": "Sigla del tipo de tratamiento (mayúscula). PP tiene representación diferente (pulpa coronal)",
+      "colorConditional": {
+        "goodState": "blue",
+        "badState": "red"
+      },
+      "abbreviations": {
+        "TC": "Tratamiento de conducto (endodoncia)",
+        "PC": "Pulpectomía",
+        "PP": "Pulpotomía"
+      }
+    },
+    {
+      "id": "protesis-fija",
+      "label": "Prótesis Fija",
+      "category": "protesis",
+      "symbolType": "line",
+      "color": "blue",
+      "description": "Línea horizontal que indica extensión del puente, con líneas verticales en dientes pilares",
+      "specifications": "Azul (buen estado), Rojo (mal estado)",
+      "colorConditional": {
+        "goodState": "blue",
+        "badState": "red"
+      }
+    },
+    {
+      "id": "protesis-removible",
+      "label": "Prótesis Removible",
+      "category": "protesis",
+      "symbolType": "double-line",
+      "color": "blue",
+      "description": "Dos líneas horizontales paralelas azul a nivel de ápices de piezas reemplazadas",
+      "specifications": "Azul (buen estado), Rojo (mal estado). Registrar tipo de material",
+      "colorConditional": {
+        "goodState": "blue",
+        "badState": "red"
+      }
+    },
+    {
+      "id": "protesis-total",
+      "label": "Prótesis Total",
+      "category": "protesis",
+      "symbolType": "double-line",
+      "color": "blue",
+      "description": "Dos líneas rectas paralelas y horizontales sobre coronas ausentes del arco edéntulo",
+      "specifications": "Azul (buen estado), Rojo (mal estado). Registrar tipo de material",
+      "colorConditional": {
+        "goodState": "blue",
+        "badState": "red"
+      }
+    },
+    {
+      "id": "implante",
+      "label": "Implante",
+      "category": "protesis",
+      "symbolType": "text",
+      "color": "blue",
+      "abbreviation": "IMP",
+      "description": "Abreviatura IMP en recuadro (azul buen estado, rojo periimplantitis o rechazo)",
+      "colorConditional": {
+        "goodState": "blue",
+        "badState": "red"
+      }
+    },
+    {
+      "id": "aparato-fijo",
+      "label": "Aparato Ortodóncico Fijo",
+      "category": "ortodoncia",
+      "symbolType": "cross-square",
+      "color": "blue",
+      "description": "Cuadrados con cruz en su interior, ubicados a nivel de los ápices de las piezas extremas, unidos por una línea recta",
+      "specifications": "Azul (buen estado), Rojo (mal estado). Detallar tipo de aparatología",
+      "colorConditional": {
+        "goodState": "blue",
+        "badState": "red"
+      }
+    },
+    {
+      "id": "aparato-removible",
+      "label": "Aparato Ortodóncico Removible",
+      "category": "ortodoncia",
+      "symbolType": "zigzag",
+      "color": "blue",
+      "description": "Línea en zigzag a la altura de los ápices de las piezas del maxilar en tratamiento",
+      "specifications": "Azul (buen estado), Rojo (mal estado). Tipo de aparato",
+      "colorConditional": {
+        "goodState": "blue",
+        "badState": "red"
+      }
+    },
+    {
+      "id": "diastema",
+      "label": "Diastema",
+      "category": "anomalia",
+      "symbolType": "parenthesis",
+      "color": "blue",
+      "description": "Signo de paréntesis invertido ( ) entre las piezas dentarias"
+    },
+    {
+      "id": "diente-ectopico",
+      "label": "Diente Ectópico",
+      "category": "anomalia",
+      "symbolType": "text",
+      "color": "blue",
+      "abbreviation": "E",
+      "description": "Letra E en recuadro"
+    },
+    {
+      "id": "diente-en-clavija",
+      "label": "Diente en Clavija",
+      "category": "anomalia",
+      "symbolType": "triangle",
+      "color": "blue",
+      "description": "Triángulo azul circunscribiendo el número del diente"
+    },
+    {
+      "id": "diente-extruido",
+      "label": "Diente Extruido",
+      "category": "anomalia",
+      "symbolType": "arrow",
+      "color": "blue",
+      "description": "Flecha azul dirigida hacia el plano oclusal"
+    },
+    {
+      "id": "diente-intruido",
+      "label": "Diente Intruido",
+      "category": "anomalia",
+      "symbolType": "arrow",
+      "color": "blue",
+      "description": "Flecha azul dirigida hacia el ápice del diente"
+    },
+    {
+      "id": "giroversion",
+      "label": "Giroversión",
+      "category": "anomalia",
+      "symbolType": "curve-arrow",
+      "color": "blue",
+      "description": "Flecha curva azul siguiendo el sentido de la giroversión"
+    },
+    {
+      "id": "migracion",
+      "label": "Migración",
+      "category": "anomalia",
+      "symbolType": "arrow",
+      "color": "blue",
+      "description": "Flecha recta horizontal azul indicando el sentido del desplazamiento"
+    },
+    {
+      "id": "transposicion",
+      "label": "Transposición",
+      "category": "anomalia",
+      "symbolType": "curve-arrow",
+      "color": "blue",
+      "description": "Dos flechas curvas azules entrecruzadas entre los números de las piezas"
+    },
+    {
+      "id": "geminacion",
+      "label": "Geminación",
+      "category": "anomalia",
+      "symbolType": "circle",
+      "color": "blue",
+      "description": "Circunferencia azul encerrando el número del diente (un diente intenta dividirse en dos)"
+    },
+    {
+      "id": "fusion",
+      "label": "Fusión",
+      "category": "anomalia",
+      "symbolType": "double-circle",
+      "color": "blue",
+      "description": "Dos circunferencias interceptadas de color azul que encierran los números de las piezas afectadas (dos dientes unidos en uno)"
+    },
+    {
+      "id": "impactacion",
+      "label": "Impactación",
+      "category": "anomalia",
+      "symbolType": "text",
+      "color": "blue",
+      "abbreviation": "I",
+      "description": "Letra I en recuadro"
+    },
+    {
+      "id": "semi-impactacion",
+      "label": "Semi-impactación",
+      "category": "anomalia",
+      "symbolType": "text",
+      "color": "blue",
+      "abbreviation": "SI",
+      "description": "Letras SI en recuadro"
+    },
+    {
+      "id": "movilidad",
+      "label": "Movilidad",
+      "category": "patologia",
+      "symbolType": "text",
+      "color": "red",
+      "abbreviation": "M",
+      "description": "M + número del grado de movilidad",
+      "specifications": "Anotar clasificación usada (ej. Miller o Nyman)"
+    },
+    {
+      "id": "desgaste",
+      "label": "Desgaste Oclusal/Incisal",
+      "category": "patologia",
+      "symbolType": "text",
+      "color": "red",
+      "abbreviation": "DES",
+      "description": "Abreviatura DES en recuadro",
+      "specifications": "Registrar tipo: abrasión, erosión o abfracción. Se dibuja también el área desgastada en rojo"
+    },
+    {
+      "id": "diente-discromico",
+      "label": "Diente Discrómico",
+      "category": "anomalia",
+      "symbolType": "text",
+      "color": "blue",
+      "abbreviation": "DIS",
+      "description": "Abreviatura DIS en recuadro"
+    },
+    {
+      "id": "macrodoncia",
+      "label": "Macrodoncia",
+      "category": "anomalia",
+      "symbolType": "text",
+      "color": "blue",
+      "abbreviation": "MAC",
+      "description": "Abreviatura MAC en recuadro"
+    },
+    {
+      "id": "microdoncia",
+      "label": "Microdoncia",
+      "category": "anomalia",
+      "symbolType": "text",
+      "color": "blue",
+      "abbreviation": "MIC",
+      "description": "Abreviatura MIC en recuadro"
+    },
+    {
+      "id": "posicion-dentaria",
+      "label": "Posición Dentaria Alterada",
+      "category": "anomalia",
+      "symbolType": "text",
+      "color": "blue",
+      "description": "Abreviatura de posición en recuadro. Permite combinaciones (ej. M+V, D+P)",
+      "specifications": "Se pueden combinar múltiples posiciones según el caso",
+      "abbreviations": {
+        "M": "Mesializado",
+        "D": "Distalizado",
+        "V": "Vestibularizado",
+        "P": "Palatinizado",
+        "L": "Lingualizado"
+      }
+    },
+    {
+      "id": "espigo-munon",
+      "label": "Espigo - Muñón",
+      "category": "tratamiento",
+      "symbolType": "square",
+      "color": "blue",
+      "description": "Línea vertical en la raíz unida a un cuadrado en la corona",
+      "specifications": "Azul (buen estado), Rojo (mal estado). Registrar cuando se observe clínica o radiográficamente",
+      "colorConditional": {
+        "goodState": "blue",
+        "badState": "red"
+      }
+    }
+  ]
+}
