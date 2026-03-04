@@ -1,10 +1,13 @@
 import { motion } from 'framer-motion';
+import { createPortal } from 'react-dom';
+import { useMemo } from 'react';
 
 interface SelectionIndicatorProps {
   type: 'aparato-fijo' | 'aparato-removible' | 'transposicion' | 'protesis-fija' | 'protesis-total' | 'protesis-removible' | 'edentulo-total';
   firstTooth: string;
   onCancel: () => void;
   isVisible: boolean;
+  position?: { x: number; y: number };
 }
 
 const CONFIG = {
@@ -49,17 +52,59 @@ export const SelectionIndicator: React.FC<SelectionIndicatorProps> = ({
   type,
   firstTooth,
   onCancel,
-  isVisible
+  isVisible,
+  position
 }) => {
   if (!isVisible) return null;
 
   const config = CONFIG[type];
 
-  return (
+  // Calcular posición fija cerca del diente clickeado
+  const fixedStyle = useMemo(() => {
+    if (!position) return undefined;
+
+    const indicatorWidth = 420;
+    const indicatorHeight = 60;
+    const gap = 15;
+    const padding = 10;
+
+    // Posicionar justo encima del click
+    let x = position.x - indicatorWidth / 2;
+    let y = position.y - indicatorHeight - gap;
+
+    // Ajustar si se sale del viewport horizontalmente
+    if (x + indicatorWidth > window.innerWidth - padding) {
+      x = window.innerWidth - indicatorWidth - padding;
+    }
+    if (x < padding) {
+      x = padding;
+    }
+
+    // Si no cabe arriba, ponerlo abajo
+    if (y < padding) {
+      y = position.y + gap;
+    }
+
+    // Ajustar si se sale del viewport verticalmente
+    if (y + indicatorHeight > window.innerHeight - padding) {
+      y = window.innerHeight - indicatorHeight - padding;
+    }
+
+    return {
+      position: 'fixed' as const,
+      left: x,
+      top: y,
+      zIndex: 9999,
+      maxWidth: indicatorWidth,
+    };
+  }, [position]);
+
+  const indicator = (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50"
+      className={position ? '' : 'absolute top-4 left-1/2 transform -translate-x-1/2 z-50'}
+      style={fixedStyle}
     >
       <div className={`bg-gradient-to-r ${config.gradient} text-white px-6 py-3 rounded-lg shadow-lg border-2 border-white flex items-center gap-3`}>
         <div className="animate-pulse">
@@ -80,4 +125,11 @@ export const SelectionIndicator: React.FC<SelectionIndicatorProps> = ({
       </div>
     </motion.div>
   );
+
+  // Si tiene posición, renderizar via portal para evitar problemas con transform del contenedor
+  if (position) {
+    return createPortal(indicator, document.body);
+  }
+
+  return indicator;
 };

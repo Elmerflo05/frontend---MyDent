@@ -207,6 +207,9 @@ const Odontogram = ({
   // Estados locales del componente (no movidos a hooks)
   const [hoveredToothInTreatment, setHoveredToothInTreatment] = useState<string | null>(null);
 
+  // Posición del indicador de selección multi-diente (cerca del diente clickeado)
+  const [selectionIndicatorPosition, setSelectionIndicatorPosition] = useState<{ x: number; y: number } | null>(null);
+
   // Estado para el modal de precio del diente (múltiples condiciones)
   const [toothPriceModal, setToothPriceModal] = useState<{
     isOpen: boolean;
@@ -288,6 +291,7 @@ const Odontogram = ({
 
     // MANEJO DE SELECCIONES MULTI-DIENTE
     // Utiliza la función helper unificada para todas las condiciones que requieren múltiples dientes
+    const resetSelectionsAndPosition = () => { resetAllSelections(); setSelectionIndicatorPosition(null); };
 
     // Aparato Ortodóntico Fijo (todos los dientes del rango, cross-cuadrante permitido)
     if (handleMultiToothSelection({
@@ -296,7 +300,7 @@ const Odontogram = ({
       conditionId: 'aparato-fijo',
       toothConditions,
       setToothConditions,
-      resetSelection: resetAllSelections,
+      resetSelection: resetSelectionsAndPosition,
       allConditions: OFFICIAL_DENTAL_CONDITIONS,
       rangeSelector: true,
       createConditionsForRange: true
@@ -309,7 +313,7 @@ const Odontogram = ({
       conditionId: 'aparato-removible',
       toothConditions,
       setToothConditions,
-      resetSelection: resetAllSelections,
+      resetSelection: resetSelectionsAndPosition,
       allConditions: OFFICIAL_DENTAL_CONDITIONS,
       rangeSelector: true,
       createConditionsForRange: true
@@ -322,7 +326,7 @@ const Odontogram = ({
       conditionId: 'transposicion',
       toothConditions,
       setToothConditions,
-      resetSelection: resetAllSelections,
+      resetSelection: resetSelectionsAndPosition,
       allConditions: OFFICIAL_DENTAL_CONDITIONS,
       requireAdjacent: true
     })) return;
@@ -334,7 +338,7 @@ const Odontogram = ({
       conditionId: 'protesis-fija',
       toothConditions,
       setToothConditions,
-      resetSelection: resetAllSelections,
+      resetSelection: resetSelectionsAndPosition,
       allConditions: OFFICIAL_DENTAL_CONDITIONS,
       rangeSelector: true,
       requireSameQuadrant: true,
@@ -348,7 +352,7 @@ const Odontogram = ({
       conditionId: 'protesis-total',
       toothConditions,
       setToothConditions,
-      resetSelection: resetAllSelections,
+      resetSelection: resetSelectionsAndPosition,
       allConditions: OFFICIAL_DENTAL_CONDITIONS,
       rangeSelector: true,
       createConditionsForRange: true
@@ -361,7 +365,7 @@ const Odontogram = ({
       conditionId: 'protesis-removible',
       toothConditions,
       setToothConditions,
-      resetSelection: resetAllSelections,
+      resetSelection: resetSelectionsAndPosition,
       allConditions: OFFICIAL_DENTAL_CONDITIONS,
       rangeSelector: true,
       requireSameQuadrant: true,
@@ -375,7 +379,7 @@ const Odontogram = ({
       conditionId: 'edentulo-total',
       toothConditions,
       setToothConditions,
-      resetSelection: resetAllSelections,
+      resetSelection: resetSelectionsAndPosition,
       allConditions: OFFICIAL_DENTAL_CONDITIONS,
       rangeSelector: true,
       requireSameQuadrant: true,
@@ -528,6 +532,8 @@ const Odontogram = ({
         const starter = multiToothStarters[config.submenuType as keyof typeof multiToothStarters];
         if (starter) {
           const finalState = state || (condition.id === 'edentulo-total' ? 'bad' : 'good');
+          // Guardar posición del menú de condiciones para posicionar el indicador cerca del diente
+          setSelectionIndicatorPosition({ x: contextMenu.x, y: contextMenu.y });
           starter(contextMenu.toothNumber, finalState, abbreviation);
           setContextMenu(null);
           return;
@@ -818,8 +824,9 @@ const Odontogram = ({
             key={type}
             type={type}
             firstTooth={selection?.firstTooth || ''}
-            onCancel={onCancel}
+            onCancel={() => { onCancel(); setSelectionIndicatorPosition(null); }}
             isVisible={!!selection?.waitingForSecond}
+            position={selectionIndicatorPosition || undefined}
           />
         ))}
       </div>
