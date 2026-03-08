@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Eye, EyeOff, LogIn, Users, TestTube, UserPlus, Briefcase, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Users, TestTube, UserPlus, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/authStore';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { toast } from 'sonner';
 import PatientRegister from '@/components/auth/PatientRegister';
-import ExternalClientRegister from '@/components/auth/ExternalClientRegister';
 import ExpiredPasswordModal from '@/components/auth/ExpiredPasswordModal';
 import { QUICK_LOGIN_BUTTONS, DEFAULT_VISIBLE_BUTTONS, type QuickLoginButton } from '@/constants/loginConfig';
 
@@ -17,7 +16,6 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
-  const [showExternalClientRegister, setShowExternalClientRegister] = useState(false);
   const [showExpiredPasswordModal, setShowExpiredPasswordModal] = useState(false);
   const [showAllQuickButtons, setShowAllQuickButtons] = useState(false);
   const { login, isLoading, error } = useAuth();
@@ -73,7 +71,6 @@ const LoginPage = () => {
     setEmail(userEmail);
     setPassword(userPassword);
     setShowRegister(false);
-    setShowExternalClientRegister(false);
 
     const success = await login({ email: userEmail, password: userPassword });
     if (success && customRedirect) {
@@ -108,16 +105,6 @@ const LoginPage = () => {
     );
   }
 
-  // If showing external client register form
-  if (showExternalClientRegister) {
-    return (
-      <ExternalClientRegister
-        onBackToLogin={() => setShowExternalClientRegister(false)}
-        onRegisterSuccess={handleRegisterSuccess}
-      />
-    );
-  }
-
   return (
     <div className="flex items-center justify-center min-h-screen p-4 bg-gradient-to-br from-clinic-primary/5 via-white to-laboratory-primary/5">
       <div className="grid items-center w-full max-w-6xl gap-8 mx-auto lg:grid-cols-2">
@@ -130,17 +117,19 @@ const LoginPage = () => {
           className="hidden space-y-8 lg:block"
         >
           <div>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex items-center justify-center w-12 h-12 bg-clinic-primary rounded-xl">
-                <Users className="text-white w-7 h-7" />
-              </div>
+            <div className="flex flex-col items-start gap-4 mb-6">
+              <img
+                src="/mydentLogo.png"
+                alt="My Dent Logo"
+                className="h-16 w-auto object-contain"
+              />
               <h1 className="text-3xl font-bold text-gray-900">
                 Centro Odontológico Integral
               </h1>
             </div>
-            
+
             <p className="text-xl leading-relaxed text-gray-600">
-              Sistema integral de gestión que unifica la clínica odontológica y el laboratorio dental 
+              Sistema integral de gestión que unifica la clínica odontológica y el laboratorio dental
               en una plataforma moderna y eficiente.
             </p>
           </div>
@@ -177,9 +166,11 @@ const LoginPage = () => {
         >
           <div className="p-8 bg-white border border-gray-100 shadow-xl rounded-2xl">
             <div className="mb-8 text-center">
-              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-clinic-primary to-laboratory-primary rounded-xl">
-                <LogIn className="w-8 h-8 text-white" />
-              </div>
+              <img
+                src="/mydentLogo.png"
+                alt="My Dent Logo"
+                className="h-14 w-auto object-contain mx-auto mb-4"
+              />
               <h2 className="mb-2 text-2xl font-bold text-gray-900">Iniciar Sesión</h2>
               <p className="text-gray-600">Accede a tu cuenta para continuar</p>
             </div>
@@ -262,26 +253,6 @@ const LoginPage = () => {
 
               <p className="mt-2 text-xs text-center text-gray-500">
                 Crea tu cuenta para acceder al portal de pacientes
-              </p>
-            </div>
-
-            {/* External Client Registration Section */}
-            <div className="pt-6 mt-6 border-t border-gray-200">
-              <div className="mb-4 text-center">
-                <p className="text-sm text-gray-600">¿Eres odontólogo y quieres solicitar estudios?</p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowExternalClientRegister(true)}
-                className="flex items-center justify-center w-full gap-2 py-3 font-semibold text-white transition-colors bg-purple-600 rounded-lg hover:bg-purple-700"
-              >
-                <Briefcase className="w-5 h-5" />
-                Registrarse como Cliente Externo
-              </button>
-
-              <p className="mt-2 text-xs text-center text-gray-500">
-                Accede al portal de laboratorio para gestionar tus solicitudes
               </p>
             </div>
 
