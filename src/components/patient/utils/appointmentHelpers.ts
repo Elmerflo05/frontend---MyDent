@@ -22,6 +22,17 @@ export const getDoctorName = (doctorId: string, doctors: UserType[]): string => 
 };
 
 /**
+ * Obtener el nombre de la especialidad a partir de los doctores cargados
+ */
+export const getSpecialtyName = (specialtyId: string, doctors: UserType[]): string => {
+  for (const doctor of doctors) {
+    const specialty = doctor.specialties?.find(s => s.id === specialtyId);
+    if (specialty) return specialty.name;
+  }
+  return specialtyId;
+};
+
+/**
  * Obtener el nombre de la sede
  */
 export const getSedeName = (sedeId: string, sedesDisponibles: any[]): string => {

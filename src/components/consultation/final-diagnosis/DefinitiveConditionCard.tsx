@@ -5,19 +5,22 @@ import type { DefinitiveDiagnosticCondition } from '@/types';
 import { consultationsApi, ConditionProcedureData } from '@/services/api/consultationsApi';
 import { formatCurrency } from '../utils/treatmentPlanHelpers';
 import { getPriceForPlan } from '@/constants/healthPlanCodes';
+import { getConditionProcedurePriceForPatient } from '@/services/pricing/consultationPricingService';
 
 interface DefinitiveConditionCardProps {
   condition: DefinitiveDiagnosticCondition;
   index: number;
   readOnly: boolean;
   patientHealthPlan?: string | null;
+  /** ID numérico del paciente para resolver precios vía API (empresa > plan > regular) */
+  patientId?: number | null;
   onEdit: (condition: DefinitiveDiagnosticCondition) => void;
   onDelete: (condition: DefinitiveDiagnosticCondition) => void;
   onProcedureChange?: (conditionId: string, procedureId: number, procedurePrice: number, procedureName: string) => void;
 }
 
 const getProcedurePrice = (procedure: ConditionProcedureData, healthPlan?: string | null): number => {
-  // Usar función centralizada que maneja todos los formatos de plan_code
+  // Fallback local que maneja solo planes de salud (no empresa)
   return getPriceForPlan(procedure, healthPlan);
 };
 
@@ -26,6 +29,7 @@ export const DefinitiveConditionCard = ({
   index,
   readOnly,
   patientHealthPlan,
+  patientId,
   onEdit,
   onDelete,
   onProcedureChange
@@ -79,9 +83,9 @@ export const DefinitiveConditionCard = ({
   // Usa el precio guardado para el procedimiento seleccionado, y precios base para los demás
   useEffect(() => {
     if (showProcedureSelector && proceduresData.length > 0) {
+      // Paso 1: Inicializar con precios locales (sync, inmediato)
       const initialPrices: Record<number, string> = {};
       proceduresData.forEach(proc => {
-        // Si es el procedimiento seleccionado y tiene precio guardado, usar ese
         if (proc.procedure_id === selectedProcId && savedProcedurePrice !== null && savedProcedurePrice !== undefined) {
           initialPrices[proc.procedure_id] = String(savedProcedurePrice);
         } else {
@@ -90,8 +94,27 @@ export const DefinitiveConditionCard = ({
         }
       });
       setProcedurePrices(initialPrices);
+
+      // Paso 2: Resolver precios vía API (async, considera empresa corporativa)
+      if (patientId) {
+        proceduresData.forEach(proc => {
+          // No sobreescribir precio guardado del procedimiento seleccionado
+          if (proc.procedure_id === selectedProcId && savedProcedurePrice !== null && savedProcedurePrice !== undefined) return;
+
+          getConditionProcedurePriceForPatient(proc.procedure_id, patientId, proc)
+            .then(resolved => {
+              if (resolved.pricingSource !== 'fallback') {
+                setProcedurePrices(prev => ({
+                  ...prev,
+                  [proc.procedure_id]: String(resolved.price)
+                }));
+              }
+            })
+            .catch(() => { /* mantener precio local */ });
+        });
+      }
     }
-  }, [showProcedureSelector, proceduresData, patientHealthPlan, selectedProcId, savedProcedurePrice]);
+  }, [showProcedureSelector, proceduresData, patientHealthPlan, patientId, selectedProcId, savedProcedurePrice]);
 
   // Auto-guardar cuando se edita el precio del procedimiento SELECCIONADO (con debounce)
   useEffect(() => {

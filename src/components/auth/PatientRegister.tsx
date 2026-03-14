@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   UserPlus,
@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   Calendar,
   Building2,
+  MapPin,
   Search,
   CheckCircle,
   XCircle
@@ -19,6 +20,7 @@ import { toast } from 'sonner';
 import { formatDateToYMD } from '@/utils/dateUtils';
 import { ApiAuthService, type RegisterPatientData } from '@/services/api/authService';
 import { companiesApi } from '@/services/api/companiesApi';
+import { branchesApi } from '@/services/api/branchesApi';
 
 interface PatientRegisterFormData {
   dni: string;
@@ -53,6 +55,9 @@ const PatientRegister = ({ onBackToLogin, onRegisterSuccess, redirectPath, promo
   const [companyResult, setCompanyResult] = useState<CompanySearchResult | null>(null);
   const [searchingCompany, setSearchingCompany] = useState(false);
   const [companySearched, setCompanySearched] = useState(false);
+  const [branches, setBranches] = useState<Array<{ branch_id: number; branch_name: string; address?: string }>>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
+  const [loadingBranches, setLoadingBranches] = useState(true);
   const [formData, setFormData] = useState<PatientRegisterFormData>({
     dni: '',
     firstName: '',
@@ -64,6 +69,26 @@ const PatientRegister = ({ onBackToLogin, onRegisterSuccess, redirectPath, promo
     confirmPassword: '',
     ruc: ''
   });
+
+  // Cargar sedes activas al montar el componente
+  useEffect(() => {
+    const loadBranches = async () => {
+      try {
+        setLoadingBranches(true);
+        const data = await branchesApi.getPublicActiveBranches();
+        setBranches(data);
+        // Si solo hay una sede, seleccionarla automáticamente
+        if (data.length === 1) {
+          setSelectedBranchId(data[0].branch_id);
+        }
+      } catch {
+        setBranches([]);
+      } finally {
+        setLoadingBranches(false);
+      }
+    };
+    loadBranches();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -189,6 +214,11 @@ const PatientRegister = ({ onBackToLogin, onRegisterSuccess, redirectPath, promo
       return false;
     }
 
+    if (!selectedBranchId) {
+      toast.error('Debes seleccionar una sede');
+      return false;
+    }
+
     return true;
   };
 
@@ -202,8 +232,8 @@ const PatientRegister = ({ onBackToLogin, onRegisterSuccess, redirectPath, promo
     try {
       // Preparar datos para el API
       const registerData: RegisterPatientData = {
-        branch_id: 1, // ID de sucursal por defecto (debe ajustarse segun configuracion)
-        identification_type_id: 1, // DNI por defecto (ajustar segun tipo)
+        branch_id: selectedBranchId!,
+        identification_type_id: 1, // DNI por defecto
         identification_number: formData.dni.trim(),
         first_name: formData.firstName.trim(),
         last_name: formData.lastName.trim(),
@@ -211,7 +241,7 @@ const PatientRegister = ({ onBackToLogin, onRegisterSuccess, redirectPath, promo
         email: formData.email.trim(),
         mobile: formData.phone.trim(),
         password: formData.password,
-        country: 'Colombia',
+        country: 'Perú',
         ...(companyResult && companyResult.vigencia_status === 'vigente' ? { company_id: companyResult.company_id } : {})
       };
 
@@ -360,6 +390,41 @@ const PatientRegister = ({ onBackToLogin, onRegisterSuccess, redirectPath, promo
                 max={formatDateToYMD(new Date())}
                 required
               />
+            </div>
+
+            {/* Sede */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <MapPin className="w-4 h-4 inline mr-1" />
+                Sede *
+              </label>
+              {loadingBranches ? (
+                <div className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 text-gray-500 text-sm">
+                  Cargando sedes...
+                </div>
+              ) : branches.length === 0 ? (
+                <div className="w-full border border-red-300 rounded-lg px-3 py-2 bg-red-50 text-red-600 text-sm">
+                  No hay sedes disponibles
+                </div>
+              ) : branches.length === 1 ? (
+                <div className="w-full border border-green-300 rounded-lg px-3 py-2 bg-green-50 text-green-800 text-sm">
+                  {branches[0].branch_name}{branches[0].address ? ` - ${branches[0].address}` : ''}
+                </div>
+              ) : (
+                <select
+                  value={selectedBranchId || ''}
+                  onChange={(e) => setSelectedBranchId(e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Seleccionar sede...</option>
+                  {branches.map((branch) => (
+                    <option key={branch.branch_id} value={branch.branch_id}>
+                      {branch.branch_name}{branch.address ? ` - ${branch.address}` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Empresa (RUC) - Opcional */}

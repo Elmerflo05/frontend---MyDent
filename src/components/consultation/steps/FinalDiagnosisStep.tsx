@@ -43,6 +43,11 @@ import {
 } from '@/components/consultation/final-diagnosis';
 import useOdontogramConfigStore from '@/store/odontogramConfigStore';
 import { getPriceForPlan } from '@/constants/healthPlanCodes';
+import {
+  getConditionProcedurePriceForPatient,
+  clearPricingCache,
+  type ResolvedPrice
+} from '@/services/pricing/consultationPricingService';
 import { consultationsApi, PresumptiveConditionData } from '@/services/api/consultationsApi';
 import { evolutionOdontogramApi } from '@/services/api/evolutionOdontogramApi';
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
@@ -159,21 +164,63 @@ const FinalDiagnosisStepComponent = ({
     [dentalConditions, customConditions]
   );
 
-  // Plan de salud del paciente (para calcular precios ajustados)
+  // Plan de salud del paciente (para calcular precios ajustados - fallback local)
   const patientPlanCode = selectedPatient?.health_plan_code
     || selectedPatient?.healthPlanCode
     || selectedPatient?.health_plan
     || selectedPatient?.healthPlan
     || null;
 
+  // ID numérico del paciente (para API de pricing del backend)
+  const numericPatientId = selectedPatient?.patient_id
+    || parseInt(selectedPatient?.id)
+    || null;
+
+  // Caché local de precios resueltos por API (procedureId → precio)
+  const resolvedPricesRef = useRef<Map<number, ResolvedPrice>>(new Map());
+
   /**
-   * Calcula el precio ajustado al plan del paciente desde los procedimientos de una condición.
-   * Si la condición tiene procedimientos con precios por plan, usa el primer procedimiento.
-   * Si no, usa el precio base de la condición como fallback.
+   * Obtener precio de un procedimiento vía API (async, con caché y fallback).
+   * Considera: empresa corporativa > plan de salud > precio regular.
+   */
+  const getResolvedPriceForProcedure = useCallback(async (
+    procedureId: number,
+    procedureData?: any
+  ): Promise<number> => {
+    if (!numericPatientId || !procedureId) {
+      return getPriceForPlan(procedureData || {}, patientPlanCode);
+    }
+
+    // Revisar caché local del ref
+    const cached = resolvedPricesRef.current.get(procedureId);
+    if (cached) return cached.price;
+
+    try {
+      const resolved = await getConditionProcedurePriceForPatient(
+        procedureId,
+        numericPatientId,
+        procedureData
+      );
+      resolvedPricesRef.current.set(procedureId, resolved);
+      return resolved.price;
+    } catch {
+      return getPriceForPlan(procedureData || {}, patientPlanCode);
+    }
+  }, [numericPatientId, patientPlanCode]);
+
+  /**
+   * Calcula el precio ajustado al plan del paciente (versión SÍNCRONA - fallback).
+   * Usado donde no se puede hacer async (renders, initializers).
+   * Para flujo async, usar getResolvedPriceForProcedure().
    */
   const getPlanAdjustedPrice = useCallback((officialCondition: any): number => {
     const procedures = officialCondition?.procedures || [];
     if (procedures.length > 0 && procedures[0]?.price_without_plan !== undefined) {
+      // Primero revisar si hay precio resuelto por API en caché
+      const procId = procedures[0].procedure_id || procedures[0].condition_procedure_id;
+      const cached = resolvedPricesRef.current.get(procId);
+      if (cached) return cached.price;
+      // Fallback local
       return getPriceForPlan(procedures[0], patientPlanCode);
     }
     return Number(officialCondition?.price_base || officialCondition?.default_price || officialCondition?.price || 0);
@@ -276,11 +323,18 @@ const FinalDiagnosisStepComponent = ({
           _surfaceName: apiCond.surface_name,
           _procedures: apiCond.procedures || [],
           // Procedimiento seleccionado (desde BD) - usar ?? para preservar valores 0
-          selected_procedure_id: apiCond.selected_procedure_id ?? null,
-          selectedProcedureId: apiCond.selected_procedure_id ?? null,
-          selected_procedure_name: apiCond.selected_procedure_name ?? null,
-          _selected_procedure_name: apiCond.selected_procedure_name ?? null,
-          procedure_price: apiCond.procedure_price ?? null,
+          // Si no tiene procedimiento seleccionado, auto-seleccionar el primero registrado
+          selected_procedure_id: apiCond.selected_procedure_id ?? ((apiCond.procedures || [])[0]?.procedure_id ?? null),
+          selectedProcedureId: apiCond.selected_procedure_id ?? ((apiCond.procedures || [])[0]?.procedure_id ?? null),
+          selected_procedure_name: apiCond.selected_procedure_name ?? ((apiCond.procedures || [])[0]?.procedure_name ?? null),
+          _selected_procedure_name: apiCond.selected_procedure_name ?? ((apiCond.procedures || [])[0]?.procedure_name ?? null),
+          procedure_price: apiCond.procedure_price ?? (() => {
+            const fp = (apiCond.procedures || [])[0];
+            if (!fp) return null;
+            const fpId = fp.procedure_id || fp.condition_procedure_id;
+            const cached = fpId ? resolvedPricesRef.current.get(fpId) : null;
+            return cached ? cached.price : getPriceForPlan(fp, patientPlanCode);
+          })(),
           // ID de la condición en BD (para actualizar procedimientos)
           definitive_condition_id: apiCond.definitive_condition_id,
           definitiveConditionId: apiCond.definitive_condition_id,
@@ -296,7 +350,7 @@ const FinalDiagnosisStepComponent = ({
       setIsLoading(false);
       setDbCheckComplete(true);
     }
-  }, [consultationId]);
+  }, [consultationId, patientPlanCode]);
 
   /**
    * Guarda las condiciones definitivas en la base de datos
@@ -542,6 +596,48 @@ const FinalDiagnosisStepComponent = ({
     setCurrentOdontogram(odontogramConditions);
   }, [definitiveConditions, OFFICIAL_DENTAL_CONDITIONS, setCurrentOdontogram, selectedPatient?.id]);
 
+  // Resolver precios via API para un array de condiciones con procedimientos
+  const resolveApiPrices = useCallback(async (
+    conditions: DiagnosticCondition[]
+  ): Promise<DiagnosticCondition[]> => {
+    if (!numericPatientId) return conditions;
+
+    // Recolectar procedureIds que necesitan resolución
+    const toResolve: { index: number; procId: number; procData: any }[] = [];
+    conditions.forEach((cond, idx) => {
+      const procs = cond.procedures || [];
+      if (procs.length > 0) {
+        const firstProc = procs[0];
+        const procId = (firstProc as any).procedure_id || (firstProc as any).condition_procedure_id;
+        if (procId) {
+          toResolve.push({ index: idx, procId, procData: firstProc });
+        }
+      }
+    });
+
+    if (toResolve.length === 0) return conditions;
+
+    // Resolver precios en paralelo via API
+    const priceResults = await Promise.allSettled(
+      toResolve.map(item =>
+        getResolvedPriceForProcedure(item.procId, item.procData)
+      )
+    );
+
+    // Actualizar precios en las condiciones
+    const updated = [...conditions];
+    priceResults.forEach((result, i) => {
+      if (result.status === 'fulfilled') {
+        updated[toResolve[i].index] = {
+          ...updated[toResolve[i].index],
+          price: result.value
+        };
+      }
+    });
+
+    return updated;
+  }, [numericPatientId, getResolvedPriceForProcedure]);
+
   // Cargar SOLO condiciones presuntivas (columna izquierda)
   const loadPresumptiveOnly = useCallback(async () => {
     if (consultationId) {
@@ -565,7 +661,7 @@ const FinalDiagnosisStepComponent = ({
               }
             }
 
-            // Recalcular precio desde procedimientos según plan del paciente
+            // Precio inicial con fallback local (se resolverá vía API abajo)
             const procs = cond.procedures || [];
             const planAdjustedPrice = (procs.length > 0 && procs[0]?.price_without_plan !== undefined)
               ? getPriceForPlan(procs[0], patientPlanCode)
@@ -589,7 +685,10 @@ const FinalDiagnosisStepComponent = ({
               procedures: cond.procedures || []
             };
           });
-          setPresumptiveConditions(mappedConditions);
+
+          // Resolver precios reales vía API (considera empresa corporativa)
+          const withApiPrices = await resolveApiPrices(mappedConditions);
+          setPresumptiveConditions(withApiPrices);
           return;
         }
       } catch (error) {
@@ -644,9 +743,11 @@ const FinalDiagnosisStepComponent = ({
           }))
         };
       });
-      setPresumptiveConditions(mappedConditions);
+      // Resolver precios reales vía API (considera empresa corporativa)
+      const withApiPrices = await resolveApiPrices(mappedConditions);
+      setPresumptiveConditions(withApiPrices);
     }
-  }, [consultationId, currentOdontogram, selectedPatient, getPatientOdontogram, OFFICIAL_DENTAL_CONDITIONS, toothPositions, getPlanAdjustedPrice, patientPlanCode]);
+  }, [consultationId, currentOdontogram, selectedPatient, getPatientOdontogram, OFFICIAL_DENTAL_CONDITIONS, toothPositions, getPlanAdjustedPrice, patientPlanCode, resolveApiPrices]);
 
   // Cargar condiciones presuntivas SIEMPRE (para mostrar en columna izquierda)
   useEffect(() => {
@@ -718,11 +819,13 @@ const FinalDiagnosisStepComponent = ({
             };
           });
 
-          setPresumptiveConditions(mappedConditions);
+          // Resolver precios reales vía API (considera empresa corporativa)
+          const withApiPrices = await resolveApiPrices(mappedConditions);
+          setPresumptiveConditions(withApiPrices);
 
           // Auto-copiar al definitivo si esta vacio Y no se han cargado datos de BD
-          if (definitiveConditions.length === 0 && mappedConditions.length > 0 && !dataLoaded && !isLoading) {
-            const initialDefinitiveConditions = createInitialDefinitiveConditionsFromAPI(mappedConditions);
+          if (definitiveConditions.length === 0 && withApiPrices.length > 0 && !dataLoaded && !isLoading) {
+            const initialDefinitiveConditions = createInitialDefinitiveConditionsFromAPI(withApiPrices);
             setDefinitiveConditions(initialDefinitiveConditions);
           }
           return;
@@ -784,51 +887,71 @@ const FinalDiagnosisStepComponent = ({
       });
     });
 
-    setPresumptiveConditions(mappedConditions);
+    // Resolver precios reales vía API (considera empresa corporativa)
+    const withApiPrices = await resolveApiPrices(mappedConditions);
+    setPresumptiveConditions(withApiPrices);
 
     // Auto-copiar al definitivo si esta vacio Y no se han cargado datos de BD
-    if (definitiveConditions.length === 0 && mappedConditions.length > 0 && !dataLoaded && !isLoading) {
-      const initialDefinitiveConditions = createInitialDefinitiveConditionsFromAPI(mappedConditions);
+    if (definitiveConditions.length === 0 && withApiPrices.length > 0 && !dataLoaded && !isLoading) {
+      const initialDefinitiveConditions = createInitialDefinitiveConditionsFromAPI(withApiPrices);
       setDefinitiveConditions(initialDefinitiveConditions);
     }
-  }, [consultationId, currentOdontogram, selectedPatient, getPatientOdontogram, OFFICIAL_DENTAL_CONDITIONS, toothPositions, definitiveConditions.length, dataLoaded, isLoading, getPlanAdjustedPrice, patientPlanCode]);
+  }, [consultationId, currentOdontogram, selectedPatient, getPatientOdontogram, OFFICIAL_DENTAL_CONDITIONS, toothPositions, definitiveConditions.length, dataLoaded, isLoading, getPlanAdjustedPrice, patientPlanCode, resolveApiPrices]);
 
   /**
    * Crea condiciones definitivas iniciales a partir de las condiciones presuntivas de la API
    */
   const createInitialDefinitiveConditionsFromAPI = (presumptiveConditions: DiagnosticCondition[]): DefinitiveDiagnosticCondition[] => {
-    return presumptiveConditions.map(cond => ({
-      id: generateConditionId('definitive'),
-      toothNumber: cond.toothNumber,
-      toothPositionId: cond.toothPositionId,
-      toothSurfaceId: cond.toothSurfaceId,
-      odontogramConditionId: cond.odontogramConditionId,
-      surfaces: cond.surfaces || [],
-      presumptive: {
-        conditionId: cond.conditionId,
-        dentalConditionId: cond.dentalConditionId,
-        conditionLabel: cond.conditionLabel,
-        cie10: cond.cie10,
-        price: cond.price,
-        notes: cond.notes,
+    return presumptiveConditions.map(cond => {
+      const procedures = cond.procedures || [];
+      // Auto-seleccionar el primer procedimiento registrado
+      const firstProc = procedures.length > 0 ? procedures[0] : null;
+      // Usar el precio ya resuelto de la condición (viene de la API o fallback)
+      const firstProcId = firstProc ? ((firstProc as any).procedure_id || (firstProc as any).condition_procedure_id) : null;
+      const cachedResolved = firstProcId ? resolvedPricesRef.current.get(firstProcId) : null;
+      const firstProcPrice = cachedResolved
+        ? cachedResolved.price
+        : (firstProc ? getPriceForPlan(firstProc, patientPlanCode) : null);
+
+      return {
+        id: generateConditionId('definitive'),
+        toothNumber: cond.toothNumber,
+        toothPositionId: cond.toothPositionId,
+        toothSurfaceId: cond.toothSurfaceId,
+        odontogramConditionId: cond.odontogramConditionId,
         surfaces: cond.surfaces || [],
-        toothSurfaceId: cond.toothSurfaceId
-      },
-      definitive: {
-        conditionId: cond.conditionId,
-        dentalConditionId: cond.dentalConditionId,
-        conditionLabel: cond.conditionLabel,
-        cie10: cond.cie10,
-        price: cond.price,
-        notes: cond.notes,
-        surfaces: cond.surfaces || [],
-        procedures: cond.procedures || []
-      },
-      modified: false,
-      _toothPositionId: cond.toothPositionId,
-      _dentalConditionId: cond.dentalConditionId || undefined,
-      _procedures: cond.procedures || []
-    }));
+        presumptive: {
+          conditionId: cond.conditionId,
+          dentalConditionId: cond.dentalConditionId,
+          conditionLabel: cond.conditionLabel,
+          cie10: cond.cie10,
+          price: cond.price,
+          notes: cond.notes,
+          surfaces: cond.surfaces || [],
+          toothSurfaceId: cond.toothSurfaceId
+        },
+        definitive: {
+          conditionId: cond.conditionId,
+          dentalConditionId: cond.dentalConditionId,
+          conditionLabel: cond.conditionLabel,
+          cie10: cond.cie10,
+          price: cond.price,
+          notes: cond.notes,
+          surfaces: cond.surfaces || [],
+          procedures
+        },
+        modified: false,
+        _toothPositionId: cond.toothPositionId,
+        _dentalConditionId: cond.dentalConditionId || undefined,
+        _procedures: procedures,
+        // Auto-seleccionar primer procedimiento
+        selected_procedure_id: firstProc?.procedure_id ?? null,
+        selectedProcedureId: firstProc?.procedure_id ?? null,
+        selected_procedure_name: firstProc?.procedure_name ?? null,
+        _selected_procedure_name: firstProc?.procedure_name ?? null,
+        procedure_price: firstProcPrice
+      } as any;
+    });
   };
 
   // Calcular totales
@@ -852,6 +975,32 @@ const FinalDiagnosisStepComponent = ({
     const toothPosition = toothPositions.find(
       tp => tp.tooth_number === newToothNumber
     );
+
+    // Preparar procedimientos y auto-seleccionar el primero
+    const conditionProcedures = ((selectedCondition as any)?.procedures || []).map((p: any) => ({
+      procedure_id: p.procedure_id || p.condition_procedure_id,
+      procedure_name: p.procedure_name,
+      procedure_code: p.procedure_code,
+      price_without_plan: p.price_without_plan,
+      price_plan_personal: p.price_plan_personal,
+      price_plan_familiar: p.price_plan_familiar,
+      price_plan_platinium: p.price_plan_platinium,
+      price_plan_oro: p.price_plan_oro,
+      applies_to_state: p.applies_to_state,
+      display_order: p.display_order
+    }));
+    const firstProc = conditionProcedures.length > 0 ? conditionProcedures[0] : null;
+    // Intentar obtener precio vía API (considera empresa); fallback a local
+    const firstProcId = firstProc?.procedure_id;
+    const cachedResolved = firstProcId ? resolvedPricesRef.current.get(firstProcId) : null;
+    const firstProcPrice = cachedResolved
+      ? cachedResolved.price
+      : (firstProc ? getPriceForPlan(firstProc, patientPlanCode) : null);
+
+    // Lanzar resolución async para este procedimiento (actualiza caché para uso futuro)
+    if (firstProcId && numericPatientId && !cachedResolved) {
+      getResolvedPriceForProcedure(firstProcId, firstProc).catch(() => {});
+    }
 
     const newCondition: DefinitiveDiagnosticCondition = {
       id: generateConditionId('definitive'),
@@ -878,35 +1027,18 @@ const FinalDiagnosisStepComponent = ({
         price: parseFloat(newPrice),
         notes: newNotes,
         surfaces: newSurfaces,
-        // Incluir procedimientos desde el catálogo del store
-        procedures: ((selectedCondition as any)?.procedures || []).map((p: any) => ({
-          procedure_id: p.procedure_id || p.condition_procedure_id,
-          procedure_name: p.procedure_name,
-          procedure_code: p.procedure_code,
-          price_without_plan: p.price_without_plan,
-          price_plan_personal: p.price_plan_personal,
-          price_plan_familiar: p.price_plan_familiar,
-          price_plan_platinium: p.price_plan_platinium,
-          price_plan_oro: p.price_plan_oro,
-          applies_to_state: p.applies_to_state,
-          display_order: p.display_order
-        }))
+        procedures: conditionProcedures
       },
       modified: true,
       _toothPositionId: toothPosition?.tooth_position_id || 1,
       _dentalConditionId: selectedCondition.condition_id,
-      _procedures: ((selectedCondition as any)?.procedures || []).map((p: any) => ({
-        procedure_id: p.procedure_id || p.condition_procedure_id,
-        procedure_name: p.procedure_name,
-        procedure_code: p.procedure_code,
-        price_without_plan: p.price_without_plan,
-        price_plan_personal: p.price_plan_personal,
-        price_plan_familiar: p.price_plan_familiar,
-        price_plan_platinium: p.price_plan_platinium,
-        price_plan_oro: p.price_plan_oro,
-        applies_to_state: p.applies_to_state,
-        display_order: p.display_order
-      }))
+      // Auto-seleccionar primer procedimiento
+      selected_procedure_id: firstProc?.procedure_id ?? null,
+      selectedProcedureId: firstProc?.procedure_id ?? null,
+      selected_procedure_name: firstProc?.procedure_name ?? null,
+      _selected_procedure_name: firstProc?.procedure_name ?? null,
+      procedure_price: firstProcPrice,
+      _procedures: conditionProcedures
     };
 
     setDefinitiveConditions([...definitiveConditions, newCondition]);
@@ -976,14 +1108,26 @@ const FinalDiagnosisStepComponent = ({
             _toothPositionId: toothPosition?.tooth_position_id || cond._toothPositionId,
             _dentalConditionId: selectedCondition.condition_id || cond._dentalConditionId,
             _procedures: updatedProcedures,
-            // Limpiar procedimiento seleccionado si la condición cambió
-            ...(conditionChanged ? {
-              selected_procedure_id: null,
-              selectedProcedureId: null,
-              selected_procedure_name: null,
-              _selected_procedure_name: null,
-              procedure_price: null
-            } : {})
+            // Si la condición cambió, auto-seleccionar el primer procedimiento de la nueva condición
+            ...(conditionChanged ? (() => {
+              const firstProc = updatedProcedures.length > 0 ? updatedProcedures[0] : null;
+              const firstProcId = firstProc?.procedure_id;
+              const cachedPrice = firstProcId ? resolvedPricesRef.current.get(firstProcId) : null;
+              const firstProcPrice = cachedPrice
+                ? cachedPrice.price
+                : (firstProc ? getPriceForPlan(firstProc, patientPlanCode) : null);
+              // Lanzar resolución async para actualizar caché
+              if (firstProcId && numericPatientId && !cachedPrice) {
+                getResolvedPriceForProcedure(firstProcId, firstProc).catch(() => {});
+              }
+              return {
+                selected_procedure_id: firstProc?.procedure_id ?? null,
+                selectedProcedureId: firstProc?.procedure_id ?? null,
+                selected_procedure_name: firstProc?.procedure_name ?? null,
+                _selected_procedure_name: firstProc?.procedure_name ?? null,
+                procedure_price: firstProcPrice
+              };
+            })() : {})
           };
 
           // Marcar como modificado si cambio respecto al presuntivo
@@ -1226,6 +1370,7 @@ const FinalDiagnosisStepComponent = ({
                   surfaces={newSurfaces}
                   availableConditions={OFFICIAL_DENTAL_CONDITIONS}
                   patientHealthPlan={selectedPatient?.health_plan_code || selectedPatient?.healthPlanCode || selectedPatient?.health_plan || selectedPatient?.healthPlan}
+                  patientId={numericPatientId}
                   onToothNumberChange={setNewToothNumber}
                   onConditionIdChange={setNewConditionId}
                   onPriceChange={setNewPrice}
@@ -1258,6 +1403,7 @@ const FinalDiagnosisStepComponent = ({
                     index={index}
                     readOnly={readOnly}
                     patientHealthPlan={selectedPatient?.health_plan_code || selectedPatient?.healthPlanCode || selectedPatient?.health_plan || selectedPatient?.healthPlan}
+                    patientId={numericPatientId}
                     onEdit={handleEditCondition}
                     onDelete={handleRemoveCondition}
                     onProcedureChange={(conditionId, procedureId, procedurePrice, procedureName) => {

@@ -3,6 +3,10 @@ import { Search, X, Package, Shield } from 'lucide-react';
 import { subProceduresApi, SubProcedureWithPrice } from '@/services/api/subProceduresApi';
 import { formatCurrency } from '../../utils/treatmentPlanHelpers';
 import { getPriceForPlan, normalizePlanCode } from '@/constants/healthPlanCodes';
+import {
+  getSubProcedurePriceForPatient,
+  type ResolvedPrice
+} from '@/services/pricing/consultationPricingService';
 
 // Extender SubProcedureWithPrice para incluir campos de descuento calculados
 interface EnrichedSubProcedure extends SubProcedureWithPrice {
@@ -10,6 +14,8 @@ interface EnrichedSubProcedure extends SubProcedureWithPrice {
   discount_amount?: number;
   discount_percentage?: number;
   plan_applied?: string | null;
+  pricing_source?: string;
+  company_name?: string | null;
 }
 
 interface SubProcedureSelectorProps {
@@ -52,6 +58,9 @@ export const SubProcedureSelector: React.FC<SubProcedureSelectorProps> = ({
     inputRef.current?.focus();
   }, []);
 
+  // ID numérico del paciente para la API de pricing
+  const numericPatientId = patientId ? (typeof patientId === 'string' ? parseInt(patientId) : patientId) : null;
+
   useEffect(() => {
     const searchSubProcedures = async () => {
       if (!searchTerm && !selectedSpecialty) {
@@ -68,13 +77,12 @@ export const SubProcedureSelector: React.FC<SubProcedureSelectorProps> = ({
         });
 
         if (response.success && response.data) {
-          // Enriquecer resultados con precios según plan de salud
-          const enrichedResults: EnrichedSubProcedure[] = response.data.slice(0, 20).map(sp => {
-            // Calcular precio con plan usando la función centralizada
+          const sliced = response.data.slice(0, 20);
+
+          // Paso 1: Enriquecer con precios locales (inmediato)
+          const enrichedResults: EnrichedSubProcedure[] = sliced.map(sp => {
             const priceWithPlan = getPriceForPlan(sp, normalizedPlanCode);
             const priceWithoutPlan = Number(sp.price_without_plan) || 0;
-
-            // Determinar si hay descuento
             const hasDiscount = normalizedPlanCode && priceWithPlan < priceWithoutPlan;
             const discountAmount = hasDiscount ? priceWithoutPlan - priceWithPlan : 0;
             const discountPercentage = hasDiscount && priceWithoutPlan > 0
@@ -93,6 +101,32 @@ export const SubProcedureSelector: React.FC<SubProcedureSelectorProps> = ({
           });
 
           setResults(enrichedResults);
+
+          // Paso 2: Resolver precios vía API (async, considera empresa corporativa)
+          if (numericPatientId) {
+            const apiPricePromises = sliced.map(sp =>
+              getSubProcedurePriceForPatient(sp.sub_procedure_id, numericPatientId, sp)
+                .catch(() => null)
+            );
+
+            const apiPrices = await Promise.all(apiPricePromises);
+
+            setResults(prev => prev.map((sp, idx) => {
+              const resolved = apiPrices[idx];
+              if (!resolved || resolved.pricingSource === 'fallback') return sp;
+
+              return {
+                ...sp,
+                price_with_plan: resolved.price,
+                has_discount: resolved.hasDiscount,
+                discount_amount: resolved.discountAmount,
+                discount_percentage: resolved.discountPercentage,
+                plan_applied: resolved.planApplied,
+                pricing_source: resolved.pricingSource,
+                company_name: resolved.companyName
+              };
+            }));
+          }
         }
       } catch (error) {
         console.error('Error searching sub-procedures:', error);
@@ -103,9 +137,9 @@ export const SubProcedureSelector: React.FC<SubProcedureSelectorProps> = ({
 
     const debounce = setTimeout(searchSubProcedures, 300);
     return () => clearTimeout(debounce);
-  }, [searchTerm, selectedSpecialty, normalizedPlanCode]);
+  }, [searchTerm, selectedSpecialty, normalizedPlanCode, numericPatientId]);
 
-  // Mapeo de nombres amigables para planes
+  // Mapeo de nombres amigables para planes (fallback si no viene nombre dinámico)
   const planDisplayNames: Record<string, string> = {
     personal: 'Plan Personal',
     familiar: 'Plan Familiar',

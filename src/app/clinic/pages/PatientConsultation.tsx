@@ -296,6 +296,13 @@ const PatientConsultation = () => {
           // Aliases para compatibilidad
           healthPlan: apiPatient.health_plan_name,
           healthPlanCode: apiPatient.health_plan_code,
+          // Empresa corporativa (para precios corporativos)
+          company_id: apiPatient.company_id || null,
+          companyId: apiPatient.company_id?.toString() || undefined,
+          company_name: apiPatient.company_name || null,
+          companyName: apiPatient.company_name || undefined,
+          // Patient ID numérico para API de pricing
+          patient_id: apiPatient.patient_id,
           createdAt: new Date(apiPatient.created_at || Date.now()),
           updatedAt: new Date(apiPatient.updated_at || Date.now())
         };

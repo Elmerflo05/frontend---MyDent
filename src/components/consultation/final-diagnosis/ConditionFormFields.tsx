@@ -4,6 +4,7 @@ import type { ToothCondition } from '@/types';
 import useOdontogramConfigStore from '@/store/odontogramConfigStore';
 import { formatCurrency } from '../utils/treatmentPlanHelpers';
 import { getPriceForPlan, type ProcedureWithPlanPrices } from '@/constants/healthPlanCodes';
+import { getConditionProcedurePriceForPatient } from '@/services/pricing/consultationPricingService';
 
 interface ConditionFormFieldsProps {
   isEditing: boolean;
@@ -13,8 +14,10 @@ interface ConditionFormFieldsProps {
   notes: string;
   surfaces?: string[];
   availableConditions: ToothCondition[];
-  /** Plan de salud del paciente para calcular precios preferenciales */
+  /** Plan de salud del paciente para calcular precios preferenciales (fallback) */
   patientHealthPlan?: string | null;
+  /** ID numérico del paciente para resolver precios vía API (empresa > plan > regular) */
+  patientId?: number | null;
   onToothNumberChange: (value: string) => void;
   onConditionIdChange: (value: string) => void;
   onPriceChange: (value: string) => void;
@@ -33,6 +36,7 @@ export const ConditionFormFields = ({
   surfaces = [],
   availableConditions,
   patientHealthPlan,
+  patientId,
   onToothNumberChange,
   onConditionIdChange,
   onPriceChange,
@@ -106,8 +110,9 @@ export const ConditionFormFields = ({
   }, [toothSurfaces]);
 
   /**
-   * Obtener precio de la condición según el plan del paciente
-   * Busca en los procedimientos asociados y aplica el precio del plan
+   * Obtener precio de la condición según cobertura del paciente.
+   * Prioridad (manejada por backend): empresa > plan > regular.
+   * Fallback local si la API falla o no hay patientId.
    */
   const getConditionBasePrice = (condition: any): number => {
     // 1. Si la condición tiene procedimientos con precios por plan, usar el primer procedimiento
@@ -127,16 +132,32 @@ export const ConditionFormFields = ({
     return Number(condition?.price_base || condition?.default_price || condition?.price || 0);
   };
 
-  // Cuando cambia la condición, guardar el precio base
+  // Cuando cambia la condición, resolver precio vía API (async) con fallback local (sync)
   useEffect(() => {
     if (conditionId) {
       const selectedCondition = availableConditions.find(c => c.id === conditionId);
       if (selectedCondition) {
-        const newBasePrice = getConditionBasePrice(selectedCondition);
-        setBasePrice(newBasePrice);
+        // Precio local inmediato (fallback)
+        const localPrice = getConditionBasePrice(selectedCondition);
+        setBasePrice(localPrice);
+
+        // Resolver vía API si hay patientId y procedimientos
+        if (patientId && selectedCondition.procedures?.length > 0) {
+          const firstProc = (selectedCondition as any).procedures[0];
+          const procId = firstProc?.procedure_id || firstProc?.condition_procedure_id;
+          if (procId) {
+            getConditionProcedurePriceForPatient(procId, patientId, firstProc)
+              .then(resolved => {
+                if (resolved.pricingSource !== 'fallback') {
+                  setBasePrice(resolved.price);
+                }
+              })
+              .catch(() => { /* mantener precio local */ });
+          }
+        }
       }
     }
-  }, [conditionId, availableConditions]);
+  }, [conditionId, availableConditions, patientId]);
 
   // Toggle superficie y recalcular precio
   const handleSurfaceToggle = (surfaceId: string) => {

@@ -225,14 +225,15 @@ export function useConditionProcedurePricing(): UseConditionProcedurePricingRetu
   }, []);
 
   /**
-   * Obtener precio de un procedimiento segun el plan (sin API call)
-   * Usa la función centralizada getPriceForPlan que maneja normalización de códigos
+   * Obtener precio de un procedimiento según el plan (SÍNCRONO - fallback local).
+   * Solo considera planes de salud, NO empresa corporativa.
+   * Para precios completos (empresa > plan > regular), usar calculatePriceForPatient().
+   * @deprecated Preferir calculatePriceForPatient() que llama a la API del backend
    */
   const getPriceForPlanCallback = useCallback((
     procedure: ConditionProcedure,
     planCode: string | null
   ): number => {
-    // Usar función centralizada que maneja normalización de códigos
     return getPriceForPlan(procedure, planCode);
   }, []);
 

@@ -11,7 +11,7 @@
 import { AlertCircle, Edit3, FileCheck } from 'lucide-react';
 import { memo, useState, useEffect } from 'react';
 import { StepHeader, StepNavigationButtons } from '@/components/consultation/shared';
-import { OFFICIAL_DENTAL_CONDITIONS } from '@/constants/dentalConditions';
+import useOdontogramConfigStore from '@/store/odontogramConfigStore';
 
 interface PresumptiveDiagnosisStepProps {
   // Estado del registro
@@ -47,6 +47,9 @@ const PresumptiveDiagnosisStepComponent = ({
   onSave,
   onContinue
 }: PresumptiveDiagnosisStepProps) => {
+  // Condiciones dentales desde la BD (con códigos CIE-10)
+  const { dentalConditions } = useOdontogramConfigStore();
+
   // Estado local para el textarea - permite escritura fluida
   const [localObservaciones, setLocalObservaciones] = useState(
     currentRecord.presumptiveDiagnosis?.observacionesDiagnostico || ''
@@ -81,8 +84,8 @@ const PresumptiveDiagnosisStepComponent = ({
 
   // Contar condiciones patológicas (para el mensaje de auto-poblado)
   const pathologicalConditionsCount = currentOdontogram.filter(condition => {
-    const officialCondition = OFFICIAL_DENTAL_CONDITIONS.find(c => c.id === condition.conditionId);
-    return officialCondition?.category === 'patologia' || officialCondition?.category === 'anomalia';
+    const officialCondition = dentalConditions.find(c => c.id === condition.conditionId);
+    return officialCondition?.category === 'Patología' || officialCondition?.category === 'Anomalía';
   }).length;
 
   return (
@@ -115,7 +118,7 @@ const PresumptiveDiagnosisStepComponent = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {currentOdontogram.map((condition, index) => {
-                const officialCondition = OFFICIAL_DENTAL_CONDITIONS.find(
+                const officialCondition = dentalConditions.find(
                   c => c.id === condition.conditionId
                 );
 

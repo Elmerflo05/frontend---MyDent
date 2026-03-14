@@ -108,6 +108,23 @@ export const useAppointmentAvailability = ({
     return result;
   }, [formData.sedeId, doctors]);
 
+  // Resetear specialtyId cuando las especialidades disponibles cambian (ej: cambio de sede)
+  useEffect(() => {
+    if (formData.specialtyId) {
+      const specialtyExists = availableSpecialties.some(
+        (spec: any) => spec.id === formData.specialtyId
+      );
+      if (!specialtyExists) {
+        setFormData(prev => ({ ...prev, specialtyId: '', time: '', doctorId: '' }));
+        setAvailableSlots([]);
+        setSelectedSlotDoctors([]);
+        if (errors.specialtyId) {
+          setErrors(prev => ({ ...prev, specialtyId: '' }));
+        }
+      }
+    }
+  }, [availableSpecialties, formData.specialtyId]);
+
   // ✅ MEMOIZADO: Filtrar doctores por sede y especialidad seleccionadas
   const availableDoctors = useMemo(() => {
     if (!formData.sedeId || !formData.specialtyId) return [];

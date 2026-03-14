@@ -71,7 +71,13 @@ export const TreatmentOdontogramSection = forwardRef<TreatmentOdontogramSectionR
   const patientId = patient?.patient_id || patient?.id;
 
   // Preparar datos del odontograma INICIAL (todo en rojo/pendiente)
-  const initialConditions = (initialOdontogramData || []).map(cond => ({
+  // FALLBACK ROBUSTO: Si initialOdontogramData está vacío (ej: tras reload de página),
+  // usar odontogramData (O. Actual) como base — mismas condiciones, pero todo forzado a rojo.
+  // Esto garantiza que el O. Inicial siempre muestre datos si el O. Actual los tiene.
+  const initialDataSource = (initialOdontogramData && initialOdontogramData.length > 0)
+    ? initialOdontogramData
+    : odontogramData;
+  const initialConditions = initialDataSource.map(cond => ({
     ...cond,
     state: 'bad',
     color: 'red'

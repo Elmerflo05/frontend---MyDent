@@ -5,6 +5,7 @@ import { CONTACT_INFO, PAYMENT_METHODS_DETAILED } from '@/constants/ui';
 import type { AppointmentFormData } from '../hooks/useAppointmentForm';
 import type { User as UserType } from '@/types';
 import { generateAppointmentPDF } from '@/utils/pdfGenerator';
+import { getSpecialtyName } from '../utils/appointmentHelpers';
 
 interface AppointmentStep3Props {
   formData: AppointmentFormData;
@@ -104,7 +105,7 @@ export const AppointmentStep3: React.FC<AppointmentStep3Props> = ({
             </div>
             <div>
               <p className="text-sm text-gray-500">Especialidad</p>
-              <p className="font-medium">{formData.specialtyId}</p>
+              <p className="font-medium">{getSpecialtyName(formData.specialtyId, doctors)}</p>
             </div>
           </div>
 

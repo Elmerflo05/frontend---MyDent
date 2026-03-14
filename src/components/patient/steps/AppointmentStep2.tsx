@@ -3,7 +3,7 @@ import { User, Phone, CheckCircle, AlertCircle, FileText, Ticket, X, Loader2 } f
 import { CONTACT_INFO, PAYMENT_METHODS_DETAILED } from '@/constants/ui';
 import type { AppointmentFormData, ValidatedCoupon } from '../hooks/useAppointmentForm';
 import type { User as UserType } from '@/types';
-import type { PriceInfo } from '../utils/appointmentHelpers';
+import { getSpecialtyName, type PriceInfo } from '../utils/appointmentHelpers';
 import { promotionsApi } from '@/services/api/promotionsApi';
 
 interface AppointmentStep2Props {
@@ -701,7 +701,7 @@ export const AppointmentStep2: React.FC<AppointmentStep2Props> = ({
           })}</p>
           <p><strong>Hora:</strong> {formData.time}</p>
           <p><strong>Sede:</strong> {getSedeName(formData.sedeId, sedesDisponibles)}</p>
-          <p><strong>Especialidad:</strong> {formData.specialtyId}</p>
+          <p><strong>Especialidad:</strong> {getSpecialtyName(formData.specialtyId, doctors)}</p>
           <p><strong>Doctor:</strong> {getDoctorName(formData.doctorId, doctors)}</p>
         </div>
       </div>

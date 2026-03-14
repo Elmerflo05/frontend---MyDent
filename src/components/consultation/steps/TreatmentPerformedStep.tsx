@@ -126,6 +126,7 @@ interface TreatmentPerformedStepProps {
   markStepCompleted: (step: number) => void;
   toast: {
     success: (message: string) => void;
+    error: (message: string) => void;
   };
 
   // Control de acceso
@@ -911,7 +912,7 @@ const TreatmentPerformedStepComponent = ({
       setShowCompletionModal(true);
     } catch (error) {
       console.error('Error al finalizar consulta:', error);
-      toast.success('Error al finalizar la consulta');
+      toast.error('Error al finalizar la consulta');
     }
   };
 
@@ -942,7 +943,7 @@ const TreatmentPerformedStepComponent = ({
       if (odontogramRef.current?.hasPendingChanges()) {
         const odontogramSuccess = await odontogramRef.current.saveAll();
         if (!odontogramSuccess) {
-          toast.success('Error al guardar cambios del odontograma');
+          toast.error('Error al guardar cambios del odontograma');
           return;
         }
       }
@@ -951,7 +952,7 @@ const TreatmentPerformedStepComponent = ({
       if (checklistRef.current?.hasPendingChanges()) {
         const checklistSuccess = await checklistRef.current.saveAll();
         if (!checklistSuccess) {
-          toast.success('Error al guardar cambios del checklist');
+          toast.error('Error al guardar cambios del checklist');
           return;
         }
       }
@@ -965,7 +966,7 @@ const TreatmentPerformedStepComponent = ({
       toast.success('Tratamientos guardados correctamente');
     } catch (error) {
       console.error('Error al guardar tratamientos:', error);
-      toast.success('Error al guardar los tratamientos');
+      toast.error('Error al guardar los tratamientos');
     } finally {
       setIsSavingAll(false);
     }
@@ -1025,7 +1026,7 @@ const TreatmentPerformedStepComponent = ({
       toast.success('Tratamiento exportado como PDF exitosamente');
     } catch (error) {
       console.error('Error al exportar PDF:', error);
-      toast.success('Error al exportar el tratamiento. Por favor, intente nuevamente.');
+      toast.error('Error al exportar el tratamiento. Por favor, intente nuevamente.');
     }
   };
 
@@ -1047,7 +1048,7 @@ const TreatmentPerformedStepComponent = ({
       });
       toast.success('Odontograma exportado como PDF exitosamente');
     } catch (error) {
-      toast.success('Error al exportar el odontograma. Por favor, intente nuevamente.');
+      toast.error('Error al exportar el odontograma. Por favor, intente nuevamente.');
     }
   };
 

@@ -1,9 +1,18 @@
 /**
- * Health Plan Codes - Constantes centralizadas
- * Single Source of Truth para códigos de planes de salud
+ * Health Plan Codes - Constantes centralizadas (FALLBACK LOCAL)
  *
- * IMPORTANTE: Los plan_codes en la base de datos deben estar normalizados a lowercase
- * Los valores canónicos son: 'personal', 'familiar', 'platinium', 'oro'
+ * IMPORTANTE: Este archivo es un FALLBACK síncrono para cuando la API no está disponible.
+ * La fuente de verdad para precios es el BACKEND (pricingService.js) que considera:
+ *   1. Empresa corporativa → precios corporativos
+ *   2. Plan de salud activo → precios del plan
+ *   3. Sin cobertura → precio regular
+ *
+ * Para precios que consideren empresa corporativa, usar:
+ *   - consultationPricingService.ts (servicio centralizado del frontend)
+ *   - API endpoints: /pricing/calculate/:id/patient/:patientId
+ *
+ * getPriceForPlan() solo maneja planes de salud (personal, familiar, platinium, oro).
+ * NO puede resolver precios corporativos.
  */
 
 // Códigos canónicos de planes (lowercase)
