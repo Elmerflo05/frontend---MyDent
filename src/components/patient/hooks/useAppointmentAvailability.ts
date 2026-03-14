@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, Dispatch, SetStateAction } from 'react';
-import type { User as UserType } from '@/types';
+import type { User as UserType, Specialty } from '@/types';
 import type { AppointmentFormData } from './useAppointmentForm';
+import { specialtiesApi } from '@/services/api/specialtiesApi';
 
 /**
  * Hook para manejar disponibilidad de citas, slots y doctores
@@ -31,7 +32,7 @@ interface UseAppointmentAvailabilityReturn {
   selectedSlotDoctors: Array<{ id: string; name: string; specialties: string[] }>;
   setSelectedSlotDoctors: Dispatch<SetStateAction<Array<{ id: string; name: string; specialties: string[] }>>>;
   loadAvailableSlots: () => Promise<void>;
-  availableSpecialties: any[];
+  availableSpecialties: Specialty[];
   availableDoctors: UserType[];
 }
 
@@ -46,6 +47,7 @@ export const useAppointmentAvailability = ({
   const [availableSlots, setAvailableSlots] = useState<TimeSlotWithDoctors[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedSlotDoctors, setSelectedSlotDoctors] = useState<Array<{ id: string; name: string; specialties: string[] }>>([]);
+  const [availableSpecialties, setAvailableSpecialties] = useState<Specialty[]>([]);
 
   // Cargar horarios disponibles basados en fecha, sede y especialidad
   const loadAvailableSlots = async () => {
@@ -81,38 +83,44 @@ export const useAppointmentAvailability = ({
     }
   }, [isOpen, formData.date, formData.sedeId, formData.specialtyId, formData.duration]);
 
-  // ✅ MEMOIZADO: Obtener especialidades disponibles en la sede seleccionada
-  const availableSpecialties = useMemo(() => {
+  // Cargar especialidades desde el backend cuando cambia la sede
+  // Usa el endpoint que filtra por doctores con HORARIOS configurados en la sede
+  useEffect(() => {
     if (!formData.sedeId) {
-      return [];
+      setAvailableSpecialties([]);
+      return;
     }
 
-    // ✅ CORREGIDO: Filtrar doctores que tengan acceso a esta sede (usando sedesAcceso)
-    const doctorsInSede = doctors.filter(doctor =>
-      doctor.sedesAcceso?.includes(formData.sedeId) ||
-      doctor.sedeId === formData.sedeId // Fallback para compatibilidad
-    );
-
-    // ✅ CORREGIDO: Obtener especialidades únicas como objetos (no solo nombres)
-    const specialtiesMap = new Map();
-    doctorsInSede.forEach(doctor => {
-      doctor.specialties?.forEach(spec => {
-        if (!specialtiesMap.has(spec.id)) {
-          specialtiesMap.set(spec.id, spec);
+    const loadSpecialties = async () => {
+      try {
+        const branchId = parseInt(formData.sedeId, 10);
+        if (isNaN(branchId)) {
+          setAvailableSpecialties([]);
+          return;
         }
-      });
-    });
 
-    const result = Array.from(specialtiesMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+        const apiSpecialties = await specialtiesApi.getSpecialtiesByBranch(branchId);
 
-    return result;
-  }, [formData.sedeId, doctors]);
+        // Mapear de formato API { specialty_id, specialty_name } a formato frontend { id, name }
+        const mapped: Specialty[] = apiSpecialties.map(s => ({
+          id: s.specialty_id.toString(),
+          name: s.specialty_name
+        }));
+
+        setAvailableSpecialties(mapped);
+      } catch {
+        setAvailableSpecialties([]);
+      }
+    };
+
+    loadSpecialties();
+  }, [formData.sedeId]);
 
   // Resetear specialtyId cuando las especialidades disponibles cambian (ej: cambio de sede)
   useEffect(() => {
     if (formData.specialtyId) {
       const specialtyExists = availableSpecialties.some(
-        (spec: any) => spec.id === formData.specialtyId
+        (spec) => spec.id === formData.specialtyId
       );
       if (!specialtyExists) {
         setFormData(prev => ({ ...prev, specialtyId: '', time: '', doctorId: '' }));
@@ -125,11 +133,10 @@ export const useAppointmentAvailability = ({
     }
   }, [availableSpecialties, formData.specialtyId]);
 
-  // ✅ MEMOIZADO: Filtrar doctores por sede y especialidad seleccionadas
+  // Filtrar doctores por sede y especialidad seleccionadas
   const availableDoctors = useMemo(() => {
     if (!formData.sedeId || !formData.specialtyId) return [];
 
-    // ✅ CORREGIDO: Filtrar por sedesAcceso y specialty.id
     const filteredDoctors = doctors.filter(doctor =>
       (doctor.sedesAcceso?.includes(formData.sedeId) || doctor.sedeId === formData.sedeId) &&
       doctor.specialties?.some(spec => spec.id === formData.specialtyId)
