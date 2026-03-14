@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertCircle, MapPin, Stethoscope, User } from 'lucide-react';
-import { CONTACT_INFO } from '@/constants/ui';
+import { getWhatsAppBaseUrl } from '../utils/appointmentHelpers';
 import { formatDateToYMD } from '@/utils/dateUtils';
 import type { AppointmentFormData } from '../hooks/useAppointmentForm';
 import type { TimeSlotWithDoctors } from '../hooks/useAppointmentAvailability';
@@ -47,7 +47,7 @@ export const AppointmentStep1: React.FC<AppointmentStep1Props> = ({
           ¿Necesitas ayuda para agendar tu cita?
         </p>
         <a
-          href={`${CONTACT_INFO.WHATSAPP.URL}?text=${encodeURIComponent('Hola, necesito ayuda para agendar una cita')}`}
+          href={`${getWhatsAppBaseUrl()}?text=${encodeURIComponent('Hola, necesito ayuda para agendar una cita')}`}
           target="_blank"
           rel="noopener noreferrer"
           className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"

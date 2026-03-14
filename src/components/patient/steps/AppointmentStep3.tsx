@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, Calendar, FileText, AlertCircle, Mail, Download } from 'lucide-react';
-import { CONTACT_INFO, PAYMENT_METHODS_DETAILED } from '@/constants/ui';
+import { PAYMENT_METHODS_DETAILED } from '@/constants/ui';
 import type { AppointmentFormData } from '../hooks/useAppointmentForm';
 import type { User as UserType } from '@/types';
 import { generateAppointmentPDF } from '@/utils/pdfGenerator';
-import { getSpecialtyName } from '../utils/appointmentHelpers';
+import { getSpecialtyName, getWhatsAppBaseUrl } from '../utils/appointmentHelpers';
 
 interface AppointmentStep3Props {
   formData: AppointmentFormData;
@@ -157,7 +157,7 @@ export const AppointmentStep3: React.FC<AppointmentStep3Props> = ({
         </button>
 
         <a
-          href={`${CONTACT_INFO.WHATSAPP.URL}?text=${encodeURIComponent('Hola, he solicitado una cita y me gustaría más información')}`}
+          href={`${getWhatsAppBaseUrl()}?text=${encodeURIComponent('Hola, he solicitado una cita y me gustaría más información')}`}
           target="_blank"
           rel="noopener noreferrer"
           className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"

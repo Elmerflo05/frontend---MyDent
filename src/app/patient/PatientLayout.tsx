@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { routeConfig } from '@/router';
 import { useAuthStore } from '@/store/authStore';
+import { useAppSettingsStore } from '@/store/appSettingsStore';
 import NotificationBell from '@/components/notifications/NotificationBell';
 import type { Patient } from '@/types';
 import { patientsApi } from '@/services/api/patientsApi';
@@ -56,11 +57,13 @@ const PatientLayout = () => {
   const [hasPendingDebts, setHasPendingDebts] = useState(false);
   const [nextAppointment, setNextAppointment] = useState<NextAppointmentInfo | null>(null);
   const { user, logout } = useAuthStore();
+  const { loadSettings } = useAppSettingsStore();
   const navigate = useNavigate();
 
   useEffect(() => {
     loadPatientData();
     loadNextAppointment();
+    loadSettings();
   }, [user]);
 
   // Cargar notificaciones de citas al iniciar

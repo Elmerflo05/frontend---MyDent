@@ -463,7 +463,7 @@ export default function HealthPlanSubscriptionApproval() {
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
                   {selectedSubscription.voucher_url ? (
                     <img
-                      src={selectedSubscription.voucher_url}
+                      src={`${(import.meta.env.VITE_API_URL || 'http://localhost:4015/api').replace('/api', '')}${selectedSubscription.voucher_url}`}
                       alt="Voucher de pago"
                       className="w-full h-auto"
                     />

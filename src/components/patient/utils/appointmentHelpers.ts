@@ -1,6 +1,21 @@
 import type { User as UserType } from '@/types';
 import { CONTACT_INFO } from '@/constants/ui';
 import { PRICING } from '@/constants/pricing';
+import { useAppSettingsStore } from '@/store/appSettingsStore';
+
+/**
+ * Obtiene la URL base de WhatsApp usando el número configurado en el sistema.
+ * Fallback a CONTACT_INFO si no hay settings cargados.
+ */
+export const getWhatsAppBaseUrl = (): string => {
+  const settings = useAppSettingsStore.getState().settings;
+  if (settings?.whatsappNumber) {
+    // Limpiar el número: quitar +, espacios, guiones
+    const cleanNumber = settings.whatsappNumber.replace(/[\s\-\+]/g, '');
+    return `https://wa.me/${cleanNumber}`;
+  }
+  return CONTACT_INFO.WHATSAPP.URL;
+};
 
 /**
  * Utilidades y helpers para la solicitud de citas

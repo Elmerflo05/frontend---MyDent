@@ -586,12 +586,7 @@ class PatientPortalApiService {
 
       const response = await httpClient.post<CreatePatientExternalExamResponse>(
         '/patient-portal/external-exams/file',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        }
+        formData
       );
 
       if (!response || response.success === false) {

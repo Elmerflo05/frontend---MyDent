@@ -681,7 +681,7 @@ export const Contracts = () => {
                         </div>
                       </div>
                       <a
-                        href={`${import.meta.env.VITE_API_URL || 'http://localhost:4015'}${selectedContract.fileUrl}`}
+                        href={`${(import.meta.env.VITE_API_URL || 'http://localhost:4015/api').replace('/api', '')}${selectedContract.fileUrl}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl hover:from-purple-600 hover:to-indigo-700 transition-all shadow-md shadow-purple-200 font-medium"

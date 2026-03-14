@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { User, Phone, CheckCircle, AlertCircle, FileText, Ticket, X, Loader2 } from 'lucide-react';
-import { CONTACT_INFO, PAYMENT_METHODS_DETAILED } from '@/constants/ui';
+import { PAYMENT_METHODS_DETAILED } from '@/constants/ui';
 import type { AppointmentFormData, ValidatedCoupon } from '../hooks/useAppointmentForm';
 import type { User as UserType } from '@/types';
-import { getSpecialtyName, type PriceInfo } from '../utils/appointmentHelpers';
+import { getSpecialtyName, getWhatsAppBaseUrl, type PriceInfo } from '../utils/appointmentHelpers';
 import { promotionsApi } from '@/services/api/promotionsApi';
 
 interface AppointmentStep2Props {
@@ -610,7 +610,7 @@ export const AppointmentStep2: React.FC<AppointmentStep2Props> = ({
                     {/* WhatsApp Contact Button */}
                     <div className="flex justify-center">
                       <a
-                        href={`${CONTACT_INFO.WHATSAPP.URL}?text=${encodeURIComponent('Hola, tengo una consulta sobre el pago de mi cita')}`}
+                        href={`${getWhatsAppBaseUrl()}?text=${encodeURIComponent('Hola, tengo una consulta sobre el pago de mi cita')}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"

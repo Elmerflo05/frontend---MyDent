@@ -76,37 +76,47 @@ export class ConsentDocumentService {
 
     let contenidoProcesado = contenido;
 
-    // Reemplazar nombre del paciente
-    contenidoProcesado = contenidoProcesado.replace(
-      /Yo\s+\.+\s*\(como paciente\)/g,
-      `Yo <strong>${formData.pacienteNombre}</strong> (como paciente)`
-    );
+    // ===== REEMPLAZAR PÁRRAFO INTRODUCTORIO (paciente y representante legal) =====
+    // Busca el párrafo <p> que contiene "Yo" y "representante legal de" y lo reemplaza completo
+    // Esto evita el bug donde los regex individuales interferían entre sí (ej: DNI duplicado)
+    const introRegex = /(<p[^>]*>\s*)Yo[,]?\s*(?:paciente)?[\s\S]*?en calidad de representante legal de[\s\S]*?(\s*<\/p>)/;
+    const introMatch = contenidoProcesado.match(introRegex);
 
-    // Reemplazar DNI del paciente
-    contenidoProcesado = contenidoProcesado.replace(
-      /con DNI No\.\s+\.+,/g,
-      `con DNI No. <strong>${formData.pacienteDni}</strong>,`
-    );
+    if (introMatch) {
+      let newIntro: string;
 
-    // Reemplazar domicilio del paciente
-    contenidoProcesado = contenidoProcesado.replace(
-      /con domicilio en\s+\.+\s+o Yo/g,
-      `con domicilio en <strong>${formData.pacienteDomicilio}</strong> o Yo`
-    );
+      if (formData.tieneRepresentante && formData.representanteNombre) {
+        // CON REPRESENTANTE: El representante autoriza en nombre del menor
+        newIntro = `${introMatch[1]}Yo <strong>${formData.representanteNombre}</strong>, con DNI No. <strong>${formData.representanteDni}</strong>, mayor de edad, y con domicilio en <strong>${formData.representanteDomicilio}</strong>, en calidad de representante legal del menor <strong>${formData.pacienteNombre}</strong>, con DNI No. <strong>${formData.pacienteDni}</strong> y con domicilio en <strong>${formData.pacienteDomicilio}</strong>${introMatch[2]}`;
+      } else {
+        // SIN REPRESENTANTE: Solo el paciente (adulto)
+        newIntro = `${introMatch[1]}Yo <strong>${formData.pacienteNombre}</strong> (como paciente), con DNI No. <strong>${formData.pacienteDni}</strong>, mayor de edad, y con domicilio en <strong>${formData.pacienteDomicilio}</strong>${introMatch[2]}`;
+      }
 
-    // Si tiene representante legal, reemplazar sus datos
-    if (formData.tieneRepresentante && formData.representanteNombre) {
-      // Segundo "Yo" (representante)
-      const regex = /o Yo\s+\.+\s+con DNI No\.\s+\.+,\s+mayor de edad,\s+y con domicilio\s+en\s+\.+\s+en calidad de representante legal de/g;
+      contenidoProcesado = contenidoProcesado.replace(introRegex, newIntro);
+    } else {
+      // Fallback para formato "COMO PACIENTE" (cirugia-apical, cirugia-tercera-molar)
+      const comoPacienteRegex = /Yo,\s*\.+\s*<strong>COMO PACIENTE<\/strong>/;
+      if (comoPacienteRegex.test(contenidoProcesado)) {
+        if (formData.tieneRepresentante && formData.representanteNombre) {
+          contenidoProcesado = contenidoProcesado.replace(
+            comoPacienteRegex,
+            `Yo, <strong>${formData.representanteNombre}</strong>, con DNI No. <strong>${formData.representanteDni}</strong>, en calidad de representante legal del menor <strong>${formData.pacienteNombre}</strong>, con DNI No. <strong>${formData.pacienteDni}</strong>`
+          );
+        } else {
+          contenidoProcesado = contenidoProcesado.replace(
+            comoPacienteRegex,
+            `Yo, <strong>${formData.pacienteNombre}</strong>, con DNI No. <strong>${formData.pacienteDni}</strong>, <strong>COMO PACIENTE</strong>`
+          );
+        }
+      }
+    }
+
+    // Reemplazar nombre del Cirujano Dentista en el cuerpo del documento
+    if (formData.doctorNombre) {
       contenidoProcesado = contenidoProcesado.replace(
-        regex,
-        `o Yo <strong>${formData.representanteNombre}</strong> con DNI No. <strong>${formData.representanteDni}</strong>, mayor de edad, y con domicilio en <strong>${formData.representanteDomicilio}</strong> en calidad de representante legal de`
-      );
-
-      // Nombre del paciente después de "representante legal de"
-      contenidoProcesado = contenidoProcesado.replace(
-        /en calidad de representante legal de\s+\.+\s+<strong>DECLARO<\/strong>/g,
-        `en calidad de representante legal de <strong>${formData.pacienteNombre}</strong> <strong>DECLARO</strong>`
+        /Cirujano Dentista\.+/g,
+        `Cirujano Dentista <strong>${formData.doctorNombre}</strong>`
       );
     }
 
@@ -155,7 +165,7 @@ export class ConsentDocumentService {
 
       // Reemplazar la sección de firmas original
       contenidoProcesado = contenidoProcesado.replace(
-        /<div style="display: flex; justify-content: space-between; margin-top: 60px;">[\s\S]*?<\/div>/,
+        /<div style="display: flex; justify-content: space-between; margin-top: 60px;">[\s\S]*?<\/div>[\s\S]*?<\/div>[\s\S]*?<\/div>/,
         firmasHTML
       );
     }
@@ -178,7 +188,9 @@ export class ConsentDocumentService {
             <div style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 10px; min-height: 100px;"></div>
           `}
           <p style="margin: 5px 0; font-size: 14px;"><strong>${formData.tieneRepresentante ? 'Representante Legal' : 'El Paciente'}</strong></p>
-          ${formData.pacienteNombre ? `<p style="margin: 0; font-size: 12px; color: #666;">${formData.pacienteNombre}</p>` : ''}
+          ${formData.tieneRepresentante && formData.representanteNombre
+            ? `<p style="margin: 0; font-size: 12px; color: #666;">${formData.representanteNombre}</p>`
+            : formData.pacienteNombre ? `<p style="margin: 0; font-size: 12px; color: #666;">${formData.pacienteNombre}</p>` : ''}
         </div>
         <div style="text-align: center; flex: 1;">
           ${formData.firmaDoctor ? `
@@ -566,12 +578,16 @@ export class ConsentDocumentService {
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(8);
     pdf.setTextColor(...darkColor);
-    pdf.text('Firma del Paciente', margin + (signatureWidth + 10) / 2, signatureStartY + 36, { align: 'center' });
+    const firmaLabel = consent.tieneRepresentante ? 'Firma del Representante Legal' : 'Firma del Paciente';
+    pdf.text(firmaLabel, margin + (signatureWidth + 10) / 2, signatureStartY + 36, { align: 'center' });
 
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(7);
     pdf.setTextColor(...grayColor);
-    pdf.text(consent.pacienteNombre, margin + (signatureWidth + 10) / 2, signatureStartY + 41, { align: 'center' });
+    const firmaNombre = consent.tieneRepresentante && consent.representanteNombre
+      ? consent.representanteNombre
+      : consent.pacienteNombre;
+    pdf.text(firmaNombre, margin + (signatureWidth + 10) / 2, signatureStartY + 41, { align: 'center' });
 
     // Firma del doctor (derecha)
     const doctorSignX = margin + signatureWidth + 20;

@@ -139,11 +139,7 @@ class PatientDocumentsApiService {
         }
       });
 
-      const response = await httpClient.post<PatientDocumentResponse>('/patient-documents/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const response = await httpClient.post<PatientDocumentResponse>('/patient-documents/upload', formData);
 
       if (!response.success || !response.data) {
         throw new Error(response.message || 'Error al subir documento');

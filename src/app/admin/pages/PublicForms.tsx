@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
@@ -12,7 +12,8 @@ import {
   User,
   Calendar,
   FileSignature,
-  Loader2
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import { ConsentFormFields } from '@/components/consent';
 import { useAuthStore } from '@/store/authStore';
@@ -161,6 +162,9 @@ const ConsentimientosInformados = () => {
   const [selectedSignedConsent, setSelectedSignedConsent] = useState<SignedConsent | null>(null);
   const [showSignedViewer, setShowSignedViewer] = useState(false);
 
+  // Ref para el contenido editable del consentimiento
+  const contentRef = useRef<HTMLDivElement>(null);
+
   // Estado para tabs - Pacientes inician en firmados, otros en plantillas
   const isPatient = user?.role === 'patient';
   const [activeTab, setActiveTab] = useState<'plantillas' | 'firmados'>(isPatient ? 'firmados' : 'plantillas');
@@ -202,6 +206,61 @@ const ConsentimientosInformados = () => {
     setShowViewer(true);
   };
 
+  // Establecer contenido inicial cuando se abre el visor
+  useEffect(() => {
+    if (showViewer && selectedConsentimiento && contentRef.current) {
+      const processed = ConsentDocumentService.processConsentContent(
+        selectedConsentimiento.contenido,
+        formData
+      );
+      contentRef.current.innerHTML = processed;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showViewer, selectedConsentimiento]);
+
+  // Actualizar el contenido del documento con los datos actuales del formulario
+  const handleRefreshContent = () => {
+    if (selectedConsentimiento && contentRef.current) {
+      const processed = ConsentDocumentService.processConsentContent(
+        selectedConsentimiento.contenido,
+        formData
+      );
+      contentRef.current.innerHTML = processed;
+    }
+  };
+
+  // Imprimir el contenido editado del documento
+  const handlePrintEdited = () => {
+    if (!selectedConsentimiento || !contentRef.current) return;
+    const editedHTML = contentRef.current.innerHTML
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/\bon\w+\s*=\s*"[^"]*"/gi, '')
+      .replace(/\bon\w+\s*=\s*'[^']*'/gi, '');
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${selectedConsentimiento.nombre}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+            h1 { color: #1f2937; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; }
+            .content { margin-top: 20px; }
+            @media print { body { margin: 20px; } }
+          </style>
+        </head>
+        <body>
+          <h1>${selectedConsentimiento.nombre}</h1>
+          <div class="content">${editedHTML}</div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 250);
+  };
+
   // Manejar guardado de consentimiento
   const handleGuardarConsentimiento = async () => {
     if (!user?.id) return;
@@ -216,7 +275,8 @@ const ConsentimientosInformados = () => {
         setActiveTab('firmados');
         setShowViewer(false);
         resetForm();
-      }
+      },
+      contentRef.current?.innerHTML // Contenido editado manualmente
     );
 
     if (!success) {
@@ -509,19 +569,30 @@ const ConsentimientosInformados = () => {
               {/* Formulario de datos */}
               <ConsentFormFields data={formData} onChange={setFormData} />
 
-              {/* Vista previa del consentimiento */}
+              {/* Documento del consentimiento - Editable */}
               <div className="mt-6 p-6 border-2 border-gray-200 rounded-lg bg-gray-50">
-                <h3 className="text-lg font-semibold mb-4 text-gray-900">
-                  Vista previa del documento
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Documento del Consentimiento
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={handleRefreshContent}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                    title="Volver a aplicar los datos del formulario al documento"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Actualizar con datos
+                  </button>
+                </div>
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+                  Puede editar directamente el texto del documento. Use "Actualizar con datos" para re-aplicar los campos del formulario.
+                </p>
                 <div
-                  className="prose max-w-none"
-                  dangerouslySetInnerHTML={{
-                    __html: ConsentDocumentService.processConsentContent(
-                      selectedConsentimiento.contenido,
-                      formData
-                    )
-                  }}
+                  ref={contentRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  className="prose max-w-none bg-white p-4 rounded-lg border-2 border-gray-300 focus:border-blue-400 outline-none min-h-[300px] cursor-text"
                 />
               </div>
             </div>
@@ -547,7 +618,7 @@ const ConsentimientosInformados = () => {
               </button>
 
               <button
-                onClick={() => printConsentTemplate(selectedConsentimiento, formData)}
+                onClick={handlePrintEdited}
                 className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
               >
                 <Printer className="w-4 h-4" />

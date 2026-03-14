@@ -184,7 +184,7 @@ const AuxiliaryResultsStepComponent = ({
       .forEach((result, index) => {
         if (result.file_path) {
           allFiles.push({
-            url: `${import.meta.env.VITE_API_URL || 'http://localhost:4015'}${result.file_path}`,
+            url: `${(import.meta.env.VITE_API_URL || 'http://localhost:4015/api').replace('/api', '')}${result.file_path}`,
             name: result.original_name || `Radiografia ${index + 1}`,
             type: 'image'
           });
@@ -197,7 +197,7 @@ const AuxiliaryResultsStepComponent = ({
       .forEach((result, index) => {
         if (result.file_path) {
           allFiles.push({
-            url: `${import.meta.env.VITE_API_URL || 'http://localhost:4015'}${result.file_path}`,
+            url: `${(import.meta.env.VITE_API_URL || 'http://localhost:4015/api').replace('/api', '')}${result.file_path}`,
             name: result.original_name || `Documento ${index + 1}`,
             type: 'pdf'
           });
@@ -665,7 +665,7 @@ const AuxiliaryResultsStepComponent = ({
                                 {result.file_path ? (
                                   <>
                                     <img
-                                      src={`${import.meta.env.VITE_API_URL || 'http://localhost:4015'}${result.file_path}`}
+                                      src={`${(import.meta.env.VITE_API_URL || 'http://localhost:4015/api').replace('/api', '')}${result.file_path}`}
                                       alt={result.original_name || 'Imagen de radiografia'}
                                       className="w-full h-full object-cover"
                                     />

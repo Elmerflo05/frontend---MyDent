@@ -11,6 +11,17 @@ import type { ConsentFormData } from '@/components/consent';
 import { consentsApiService, type ConsentTemplate, type SignedConsent, type CreateSignedConsentPayload } from '@/services/api/consentsApiService';
 import { ConsentDocumentService } from '@/services/consent';
 
+/**
+ * Sanitiza HTML removiendo scripts y event handlers para prevenir XSS
+ */
+function sanitizeHTML(html: string): string {
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/\bon\w+\s*=\s*"[^"]*"/gi, '')
+    .replace(/\bon\w+\s*=\s*'[^']*'/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '');
+}
+
 export const useConsentActions = () => {
   const [isSaving, setIsSaving] = useState(false);
 
@@ -21,7 +32,8 @@ export const useConsentActions = () => {
     formData: ConsentFormData,
     selectedConsentimiento: ConsentTemplate | null,
     userId: string,
-    onSuccess?: () => void
+    onSuccess?: () => void,
+    editedContent?: string
   ): Promise<boolean> => {
     if (!selectedConsentimiento) {
       toast.error('No hay consentimiento seleccionado');
@@ -57,11 +69,12 @@ export const useConsentActions = () => {
         '5_timezone': Intl.DateTimeFormat().resolvedOptions().timeZone
       });
 
-      // Procesar el contenido del consentimiento con los datos del formulario
-      const documentoHTML = ConsentDocumentService.processConsentContent(
+      // Usar contenido editado manualmente si está disponible, sino procesar desde plantilla
+      const rawHTML = editedContent || ConsentDocumentService.processConsentContent(
         selectedConsentimiento.contenido,
         formData
       );
+      const documentoHTML = sanitizeHTML(rawHTML);
 
       // Determinar la fecha a usar
       const fechaFinal = formData.fecha || formatDateToYMD(new Date());
