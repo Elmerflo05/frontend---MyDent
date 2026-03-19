@@ -151,33 +151,16 @@ class AppSettingsApiService {
    * Actualiza o crea una configuración por su clave (upsert)
    */
   async upsertAppSetting(settingKey: string, settingValue: string, branchId?: number): Promise<AppSettingResponse> {
-    try {
-      // Intentar actualizar primero usando el endpoint PUT /settings/key/:key
-      const updateResponse = await httpClient.put<AppSettingResponse>(`/settings/key/${settingKey}`, {
-        setting_value: settingValue
-      });
+    const response = await httpClient.put<AppSettingResponse>(`/settings/upsert/${settingKey}`, {
+      setting_value: settingValue,
+      branch_id: branchId
+    });
 
-      if (updateResponse.success && updateResponse.data) {
-        return updateResponse;
-      }
-
-      // Si no existe, crear nueva
-      return await this.createAppSetting({
-        setting_key: settingKey,
-        setting_value: settingValue,
-        branch_id: branchId
-      });
-    } catch (error: any) {
-      // Si el error es 404 (no encontrado), crear nueva configuración
-      if (error?.status === 404 || error?.message?.includes('no encontrada')) {
-        return await this.createAppSetting({
-          setting_key: settingKey,
-          setting_value: settingValue,
-          branch_id: branchId
-        });
-      }
-      throw error;
+    if (!response.success || !response.data) {
+      throw new Error(response.message || 'Error al guardar configuración');
     }
+
+    return response;
   }
 
   /**
