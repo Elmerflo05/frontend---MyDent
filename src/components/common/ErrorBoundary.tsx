@@ -23,8 +23,28 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
+  private isChunkError(error: Error): boolean {
+    const msg = error.message.toLowerCase();
+    return (
+      msg.includes('failed to fetch dynamically imported module') ||
+      msg.includes('loading chunk') ||
+      msg.includes('loading css chunk') ||
+      error.name === 'ChunkLoadError'
+    );
+  }
+
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    
+    // Si es un ChunkLoadError (deploy reciente), recargar la página automáticamente
+    if (this.isChunkError(error)) {
+      const RELOAD_KEY = 'chunk_reload_ts';
+      const lastReload = Number(sessionStorage.getItem(RELOAD_KEY) || '0');
+      if (Date.now() - lastReload > 10_000) {
+        sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+        window.location.reload();
+        return;
+      }
+    }
+
     this.setState({
       error,
       errorInfo
@@ -37,7 +57,6 @@ export class ErrorBoundary extends Component<Props, State> {
 
     // Log error to monitoring service in production
     if (import.meta.env.PROD) {
-      // Here you would typically send to a logging service
       console.error('Production error:', {
         error: error.toString(),
         stack: error.stack,
