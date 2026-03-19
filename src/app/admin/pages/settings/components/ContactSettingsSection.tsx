@@ -32,9 +32,10 @@ export const ContactSettingsSection = ({
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* WhatsApp Principal */}
+        {/* WhatsApp Clínica */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp Principal (Número)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp Clínica My Dent</label>
+          <p className="text-xs text-gray-500 mb-1">Número sin + ni espacios. Se usa para enlaces wa.me/ en solicitudes de laboratorio y citas.</p>
           <input
             type="text"
             value={settings.whatsappNumber}
@@ -45,64 +46,16 @@ export const ContactSettingsSection = ({
           />
         </div>
 
+        {/* WhatsApp Imagenología / PanoCef */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp Principal (Mostrar)</label>
-          <input
-            type="text"
-            value={settings.whatsappDisplay}
-            onChange={(e) => setSettings({ ...settings, whatsappDisplay: e.target.value })}
-            disabled={!isEditing}
-            placeholder="+51 987 654 321"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
-          />
-        </div>
-
-        {/* WhatsApp Imagenología */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp Imagenología (Número)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp Centro de Imágenes - PANOCEF</label>
+          <p className="text-xs text-gray-500 mb-1">Número sin + ni espacios. Se usa para consultar promociones de estudios radiológicos.</p>
           <input
             type="text"
             value={settings.whatsappImaging}
             onChange={(e) => setSettings({ ...settings, whatsappImaging: e.target.value })}
             disabled={!isEditing}
             placeholder="51987654322"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp Imagenología (Mostrar)</label>
-          <input
-            type="text"
-            value={settings.whatsappImagingDisplay}
-            onChange={(e) => setSettings({ ...settings, whatsappImagingDisplay: e.target.value })}
-            disabled={!isEditing}
-            placeholder="+51 987 654 322"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
-          />
-        </div>
-
-        {/* Teléfonos */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono Principal</label>
-          <input
-            type="text"
-            value={settings.phoneMain}
-            onChange={(e) => setSettings({ ...settings, phoneMain: e.target.value })}
-            disabled={!isEditing}
-            placeholder="+51 01 234 5678"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono de Emergencia</label>
-          <input
-            type="text"
-            value={settings.phoneEmergency}
-            onChange={(e) => setSettings({ ...settings, phoneEmergency: e.target.value })}
-            disabled={!isEditing}
-            placeholder="+51 987 654 321"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50"
           />
         </div>

@@ -4,11 +4,7 @@ import { useAppSettingsStore } from '@/store/appSettingsStore';
 
 export interface ContactSettings {
   whatsappNumber: string;
-  whatsappDisplay: string;
   whatsappImaging: string;
-  whatsappImagingDisplay: string;
-  phoneMain: string;
-  phoneEmergency: string;
   emailInfo: string;
   emailAppointments: string;
   emailSupport: string;
@@ -24,11 +20,7 @@ export const useContactSettings = () => {
 
   const [contactSettings, setContactSettings] = useState<ContactSettings>({
     whatsappNumber: settings?.whatsappNumber || '51987654321',
-    whatsappDisplay: settings?.whatsappDisplay || '+51 987 654 321',
     whatsappImaging: settings?.whatsappImaging || '51987654322',
-    whatsappImagingDisplay: settings?.whatsappImagingDisplay || '+51 987 654 322',
-    phoneMain: settings?.phoneMain || '+51 01 234 5678',
-    phoneEmergency: settings?.phoneEmergency || '+51 987 654 321',
     emailInfo: settings?.emailInfo || 'info@clinicadental.com',
     emailAppointments: settings?.emailAppointments || 'citas@clinicadental.com',
     emailSupport: settings?.emailSupport || 'soporte@clinicadental.com',
@@ -42,11 +34,7 @@ export const useContactSettings = () => {
     if (settings) {
       setContactSettings({
         whatsappNumber: settings.whatsappNumber,
-        whatsappDisplay: settings.whatsappDisplay,
         whatsappImaging: settings.whatsappImaging || '51987654322',
-        whatsappImagingDisplay: settings.whatsappImagingDisplay || '+51 987 654 322',
-        phoneMain: settings.phoneMain,
-        phoneEmergency: settings.phoneEmergency,
         emailInfo: settings.emailInfo,
         emailAppointments: settings.emailAppointments,
         emailSupport: settings.emailSupport,
@@ -62,11 +50,7 @@ export const useContactSettings = () => {
     try {
       await updateSettings({
         whatsappNumber: contactSettings.whatsappNumber,
-        whatsappDisplay: contactSettings.whatsappDisplay,
         whatsappImaging: contactSettings.whatsappImaging,
-        whatsappImagingDisplay: contactSettings.whatsappImagingDisplay,
-        phoneMain: contactSettings.phoneMain,
-        phoneEmergency: contactSettings.phoneEmergency,
         emailInfo: contactSettings.emailInfo,
         emailAppointments: contactSettings.emailAppointments,
         emailSupport: contactSettings.emailSupport,
@@ -88,11 +72,7 @@ export const useContactSettings = () => {
     if (settings) {
       setContactSettings({
         whatsappNumber: settings.whatsappNumber,
-        whatsappDisplay: settings.whatsappDisplay,
         whatsappImaging: settings.whatsappImaging || '51987654322',
-        whatsappImagingDisplay: settings.whatsappImagingDisplay || '+51 987 654 322',
-        phoneMain: settings.phoneMain,
-        phoneEmergency: settings.phoneEmergency,
         emailInfo: settings.emailInfo,
         emailAppointments: settings.emailAppointments,
         emailSupport: settings.emailSupport,

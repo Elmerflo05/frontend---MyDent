@@ -1037,12 +1037,8 @@ export interface AppSettings {
   language: string;
 
   // Información de Contacto
-  whatsappNumber: string; // Formato: código país + número sin + (WhatsApp General)
-  whatsappDisplay: string; // Formato: +51 987 654 321 (WhatsApp General)
-  whatsappImaging?: string; // WhatsApp específico del Centro de Imágenes (PanoCef)
-  whatsappImagingDisplay?: string; // Formato display para Centro de Imágenes
-  phoneMain: string;
-  phoneEmergency: string;
+  whatsappNumber: string; // Número sin + ni espacios (ej: 51987654321) - usado en enlaces wa.me/ para laboratorio y citas
+  whatsappImaging?: string; // Número sin + ni espacios - WhatsApp del Centro de Imágenes (PanoCef) para promociones
   emailInfo: string;
   emailAppointments: string;
   emailSupport: string;

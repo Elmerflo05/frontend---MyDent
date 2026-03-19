@@ -26,11 +26,7 @@ const SETTING_KEY_MAP: Record<string, keyof AppSettings> = {
   'currency': 'currency',
   'language': 'language',
   'whatsapp_number': 'whatsappNumber',
-  'whatsapp_display': 'whatsappDisplay',
   'whatsapp_imaging': 'whatsappImaging',
-  'whatsapp_imaging_display': 'whatsappImagingDisplay',
-  'phone_main': 'phoneMain',
-  'phone_emergency': 'phoneEmergency',
   'email_info': 'emailInfo',
   'email_appointments': 'emailAppointments',
   'email_support': 'emailSupport',
@@ -86,11 +82,7 @@ const getDefaultSettings = (): Omit<AppSettings, 'id' | 'createdAt' | 'updatedAt
 
   // Información de Contacto
   whatsappNumber: UI_TEXTS.CONTACT?.WHATSAPP_NUMBER || '51999999999',
-  whatsappDisplay: '+51 999 999 999',
   whatsappImaging: '51999999998',
-  whatsappImagingDisplay: '+51 999 999 998',
-  phoneMain: '+51 01 234 5678',
-  phoneEmergency: '+51 999 999 999',
   emailInfo: 'info@clinica.com',
   emailAppointments: 'citas@clinica.com',
   emailSupport: UI_TEXTS.CONTACT?.SUPPORT_EMAIL || 'soporte@clinica.com',
