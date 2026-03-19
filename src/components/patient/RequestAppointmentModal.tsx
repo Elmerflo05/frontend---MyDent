@@ -137,6 +137,10 @@ const RequestAppointmentModal = ({ isOpen, onClose, selectedDate, onSuccess }: R
         // Primera consulta gratis por plan de salud
         apiData.price = 0;
         apiData.first_free_consultation = true;
+      } else if (!esClienteNuevo) {
+        // Paciente continuador: no se cobra la cita
+        apiData.price = 0;
+        apiData.is_continuing_patient = true;
       } else {
         const availablePromotions = getAvailablePromotions();
         const priceInfo = calculatePriceWithPromotion(formData.selectedPromotionId, availablePromotions);
@@ -306,6 +310,8 @@ const RequestAppointmentModal = ({ isOpen, onClose, selectedDate, onSuccess }: R
             sedesDisponibles={sedesDisponibles}
             getDoctorName={getDoctorName}
             getSedeName={getSedeName}
+            esClienteNuevo={esClienteNuevo}
+            primeraConsultaDisponible={primeraConsultaDisponible}
           />
         )}
 

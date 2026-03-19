@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { branchPaymentMethodsApi, BranchPaymentMethod } from '@/services/api/branchPaymentMethodsApi';
+import httpClient from '@/services/api/httpClient';
 import { toast } from 'sonner';
 import Swal from 'sweetalert2';
 
@@ -62,8 +63,7 @@ const initialFormData = {
   account_number: '',
   bank_name: '',
   phone_number: '',
-  qr_code_url: '',
-  instructions: '',
+  additional_info: '',
   is_active: true
 };
 
@@ -96,23 +96,15 @@ export default function BranchPaymentMethodsConfig() {
   const loadBranches = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4015/api'}/branches`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const response = await httpClient.get<any>('/branches');
+      const branchList = response.data || [];
+      setBranches(branchList);
 
-      if (response.ok) {
-        const data = await response.json();
-        const activeBranches = (data.data || data).filter((b: any) => b.status === 'active');
-        setBranches(activeBranches);
-
-        // Si el usuario tiene sede asignada, seleccionarla
-        if (user?.branch_id) {
-          setSelectedBranchId(user.branch_id);
-        } else if (activeBranches.length > 0) {
-          setSelectedBranchId(activeBranches[0].branch_id);
-        }
+      // Si el usuario tiene sede asignada, seleccionarla
+      if (user?.branch_id) {
+        setSelectedBranchId(user.branch_id);
+      } else if (branchList.length > 0) {
+        setSelectedBranchId(branchList[0].branch_id);
       }
     } catch (error) {
       console.error('Error loading branches:', error);
@@ -137,6 +129,20 @@ export default function BranchPaymentMethodsConfig() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
+
+    // Al cambiar el tipo de método, limpiar campos que no aplican
+    if (name === 'method_type') {
+      setFormData(prev => ({
+        ...prev,
+        method_type: value as MethodType,
+        bank_name: '',
+        account_number: '',
+        account_holder: '',
+        phone_number: '',
+      }));
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
@@ -159,9 +165,27 @@ export default function BranchPaymentMethodsConfig() {
     try {
       setIsSaving(true);
 
+      // Limpiar campos que no aplican al tipo seleccionado
+      const cleanedData = { ...formData };
+
+      if (cleanedData.method_type === 'bank_transfer') {
+        // Transferencia: usa banco, cuenta, titular. NO usa teléfono
+        cleanedData.phone_number = '';
+      } else if (cleanedData.method_type === 'yape' || cleanedData.method_type === 'plin') {
+        // Yape/Plin: usa teléfono, titular. NO usa banco ni cuenta
+        cleanedData.bank_name = '';
+        cleanedData.account_number = '';
+      } else {
+        // Efectivo, tarjetas, otro: no usan campos específicos
+        cleanedData.bank_name = '';
+        cleanedData.account_number = '';
+        cleanedData.account_holder = '';
+        cleanedData.phone_number = '';
+      }
+
       const dataToSend = {
         branch_id: selectedBranchId,
-        ...formData
+        ...cleanedData
       };
 
       if (editingMethod) {
@@ -193,8 +217,7 @@ export default function BranchPaymentMethodsConfig() {
       account_number: method.account_number || '',
       bank_name: method.bank_name || '',
       phone_number: method.phone_number || '',
-      qr_code_url: method.qr_code_url || '',
-      instructions: method.instructions || '',
+      additional_info: method.additional_info || '',
       is_active: method.is_active
     });
     setShowForm(true);
@@ -285,7 +308,7 @@ export default function BranchPaymentMethodsConfig() {
             value={selectedBranchId || ''}
             onChange={(e) => setSelectedBranchId(Number(e.target.value))}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-            disabled={user?.role_name !== 'Super Administrador' && branches.length <= 1}
+            disabled={user?.role !== 'super_admin' && branches.length <= 1}
           >
             <option value="">Seleccione una sede</option>
             {branches.map(branch => (
@@ -360,8 +383,8 @@ export default function BranchPaymentMethodsConfig() {
                           {method.phone_number && (
                             <p><strong>Teléfono:</strong> {method.phone_number}</p>
                           )}
-                          {method.instructions && (
-                            <p className="text-gray-400 italic mt-1">{method.instructions}</p>
+                          {method.additional_info && (
+                            <p className="text-gray-400 italic mt-1">{method.additional_info}</p>
                           )}
                         </div>
                       </div>
@@ -544,30 +567,17 @@ export default function BranchPaymentMethodsConfig() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        URL del QR (opcional)
-                      </label>
-                      <input
-                        type="url"
-                        name="qr_code_url"
-                        value={formData.qr_code_url}
-                        onChange={handleInputChange}
-                        placeholder="https://..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                      />
-                    </div>
                   </>
                 )}
 
-                {/* Instrucciones */}
+                {/* Información adicional */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Instrucciones adicionales
                   </label>
                   <textarea
-                    name="instructions"
-                    value={formData.instructions}
+                    name="additional_info"
+                    value={formData.additional_info}
                     onChange={handleInputChange}
                     placeholder="Instrucciones para el paciente..."
                     rows={3}

@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { User, Phone, CheckCircle, AlertCircle, FileText, Ticket, X, Loader2 } from 'lucide-react';
-import { PAYMENT_METHODS_DETAILED } from '@/constants/ui';
+import React, { useState, useEffect } from 'react';
+import { User, Phone, CheckCircle, AlertCircle, FileText, Ticket, X, Loader2, CreditCard, DollarSign, Building2 } from 'lucide-react';
 import type { AppointmentFormData, ValidatedCoupon } from '../hooks/useAppointmentForm';
 import type { User as UserType } from '@/types';
 import { getSpecialtyName, getWhatsAppBaseUrl, type PriceInfo } from '../utils/appointmentHelpers';
 import { promotionsApi } from '@/services/api/promotionsApi';
+import { branchPaymentMethodsApi, type BranchPaymentMethod } from '@/services/api/branchPaymentMethodsApi';
 
 interface AppointmentStep2Props {
   formData: AppointmentFormData;
@@ -47,6 +47,37 @@ export const AppointmentStep2: React.FC<AppointmentStep2Props> = ({
   // - Nuevo con plan pero ya usó primera consulta -> paga
   // - Nuevo sin plan -> paga
   const mostrarSeccionPago = esClienteNuevo && !primeraConsultaDisponible;
+
+  // Estado para métodos de pago dinámicos de la sede
+  const [branchPaymentMethods, setBranchPaymentMethods] = useState<BranchPaymentMethod[]>([]);
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
+
+  // Cargar métodos de pago activos cuando hay sede seleccionada
+  useEffect(() => {
+    if (formData.sedeId) {
+      const branchId = parseInt(formData.sedeId);
+      if (!isNaN(branchId)) {
+        setLoadingPaymentMethods(true);
+        branchPaymentMethodsApi.getActivePaymentMethods(branchId)
+          .then(methods => setBranchPaymentMethods(methods))
+          .catch(() => setBranchPaymentMethods([]))
+          .finally(() => setLoadingPaymentMethods(false));
+      }
+    } else {
+      setBranchPaymentMethods([]);
+    }
+  }, [formData.sedeId]);
+
+  // Iconos por tipo de método
+  const methodTypeIcons: Record<string, React.ReactNode> = {
+    yape: <Phone className="w-5 h-5" />,
+    plin: <Phone className="w-5 h-5" />,
+    bank_transfer: <Building2 className="w-5 h-5" />,
+    cash: <DollarSign className="w-5 h-5" />,
+    credit_card: <CreditCard className="w-5 h-5" />,
+    debit_card: <CreditCard className="w-5 h-5" />,
+    other: <CreditCard className="w-5 h-5" />
+  };
 
   // Estado para validación de cupón
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
@@ -235,8 +266,8 @@ export const AppointmentStep2: React.FC<AppointmentStep2Props> = ({
                 Cliente Continuador
               </h4>
               <p className="text-sm text-green-700">
-                Como ya eres nuestro cliente, no necesitas realizar el pago de la consulta por adelantado.
-                El pago se realizará después de tu cita.
+                Como ya eres nuestro paciente, esta consulta no tiene costo adicional.
+                Puedes reservar tu cita directamente.
               </p>
             </div>
           </div>
@@ -533,97 +564,115 @@ export const AppointmentStep2: React.FC<AppointmentStep2Props> = ({
 
           <h4 className="text-lg font-medium text-gray-900">Método de Pago</h4>
 
-          <div className="grid grid-cols-2 gap-3">
-            {PAYMENT_METHODS_DETAILED.map((method) => (
-              <button
-                key={method.id}
-                type="button"
-                onClick={() => setFormData(prev => ({ ...prev, paymentMethod: method.id }))}
-                className={`p-4 text-left rounded-lg border-2 transition-all ${
-                  formData.paymentMethod === method.id
-                    ? 'border-teal-500 bg-teal-50'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{method.icon}</span>
-                  <span className="font-medium">{method.name}</span>
-                </div>
-              </button>
-            ))}
-          </div>
+          {loadingPaymentMethods ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="w-5 h-5 animate-spin text-teal-500 mr-2" />
+              <span className="text-sm text-gray-500">Cargando métodos de pago...</span>
+            </div>
+          ) : branchPaymentMethods.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3">
+              {branchPaymentMethods.map((method) => (
+                <button
+                  key={method.payment_method_id}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, paymentMethod: method.payment_method_id.toString() }))}
+                  className={`p-4 text-left rounded-lg border-2 transition-all ${
+                    formData.paymentMethod === method.payment_method_id.toString()
+                      ? 'border-teal-500 bg-teal-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="text-teal-600">
+                      {methodTypeIcons[method.method_type] || <CreditCard className="w-5 h-5" />}
+                    </div>
+                    <span className="font-medium">{method.method_name}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 text-center">
+              <p className="text-sm text-amber-700">
+                No hay métodos de pago configurados para esta sede. Contacte a la clínica.
+              </p>
+            </div>
+          )}
           {errors.paymentMethod && (
             <p className="text-sm text-red-600">{errors.paymentMethod}</p>
           )}
 
           {/* Detalles del método seleccionado */}
-          {formData.paymentMethod && (
-            <div className="bg-gray-50 p-4 rounded-lg border">
-              {(() => {
-                const selectedMethod = PAYMENT_METHODS_DETAILED.find(m => m.id === formData.paymentMethod);
-                if (!selectedMethod) return null;
+          {formData.paymentMethod && (() => {
+            const selectedMethod = branchPaymentMethods.find(m => m.payment_method_id.toString() === formData.paymentMethod);
+            if (!selectedMethod) return null;
 
-                return (
-                  <div className="space-y-4">
-                    <h5 className="font-medium text-gray-900">
-                      Detalles de Pago - {selectedMethod.name}
-                    </h5>
+            return (
+              <div className="bg-gray-50 p-4 rounded-lg border">
+                <div className="space-y-4">
+                  <h5 className="font-medium text-gray-900">
+                    Detalles de Pago - {selectedMethod.method_name}
+                  </h5>
 
-                    <div className="bg-white p-4 rounded border">
-                      {/* QR Code para métodos digitales */}
-                      {selectedMethod.qr && (
-                        <div className="text-center mb-4">
-                          <div className="w-32 h-32 bg-gray-200 mx-auto rounded-lg flex items-center justify-center mb-2">
-                            <span className="text-gray-500 text-xs">QR Code</span>
-                          </div>
-                          <p className="text-sm text-gray-600">
-                            Escanea el código QR con tu app {selectedMethod.name}
-                          </p>
-                          {selectedMethod.number && (
-                            <p className="text-sm font-medium mt-2">
-                              O transfiere a: {selectedMethod.number}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Información de cuenta bancaria */}
-                      {selectedMethod.accountNumber && (
-                        <div className="space-y-2">
-                          <p className="text-sm">
-                            <strong>Titular:</strong> {selectedMethod.accountHolder}
-                          </p>
-                          <p className="text-sm">
-                            <strong>Número de Cuenta:</strong>
-                            <span className="font-mono bg-gray-100 px-2 py-1 rounded ml-2">
-                              {selectedMethod.accountNumber}
-                            </span>
-                          </p>
-                        </div>
-                      )}
-
-                      <p className="text-xs text-gray-500 mt-3">
-                        {selectedMethod.instructions}
+                  <div className="bg-white p-4 rounded border space-y-2">
+                    {/* Teléfono para Yape/Plin */}
+                    {selectedMethod.phone_number && (
+                      <p className="text-sm">
+                        <strong>Número:</strong>{' '}
+                        <span className="font-mono bg-gray-100 px-2 py-1 rounded">
+                          {selectedMethod.phone_number}
+                        </span>
                       </p>
-                    </div>
+                    )}
 
-                    {/* WhatsApp Contact Button */}
-                    <div className="flex justify-center">
-                      <a
-                        href={`${getWhatsAppBaseUrl()}?text=${encodeURIComponent('Hola, tengo una consulta sobre el pago de mi cita')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                      >
-                        <span>📱</span>
-                        Contactar por WhatsApp
-                      </a>
-                    </div>
+                    {/* Titular */}
+                    {selectedMethod.account_holder && (
+                      <p className="text-sm">
+                        <strong>Titular:</strong> {selectedMethod.account_holder}
+                      </p>
+                    )}
+
+                    {/* Banco */}
+                    {selectedMethod.bank_name && (
+                      <p className="text-sm">
+                        <strong>Banco:</strong> {selectedMethod.bank_name}
+                      </p>
+                    )}
+
+                    {/* Número de cuenta */}
+                    {selectedMethod.account_number && (
+                      <p className="text-sm">
+                        <strong>Número de Cuenta:</strong>{' '}
+                        <span className="font-mono bg-gray-100 px-2 py-1 rounded">
+                          {selectedMethod.account_number}
+                        </span>
+                      </p>
+                    )}
+
+                    {/* Información adicional */}
+                    {selectedMethod.additional_info && (
+                      <p className="text-xs text-gray-500 mt-3 italic">
+                        {selectedMethod.additional_info}
+                      </p>
+                    )}
                   </div>
-                );
-              })()}
-            </div>
-          )}
+
+                  {/* WhatsApp Contact Button */}
+                  <div className="flex justify-center">
+                    <a
+                      href={`${getWhatsAppBaseUrl()}?text=${encodeURIComponent('Hola, tengo una consulta sobre el pago de mi cita')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      <span>📱</span>
+                      Contactar por WhatsApp
+                    </a>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Subida de Voucher */}
           {formData.paymentMethod && (

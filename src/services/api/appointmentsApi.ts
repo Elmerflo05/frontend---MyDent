@@ -68,6 +68,10 @@ export interface AppointmentData {
   promotion_name?: string;
   discount_percentage?: number;
   reschedule_count?: number;
+
+  // Flags de tipo de paciente (para creación)
+  first_free_consultation?: boolean;
+  is_continuing_patient?: boolean;
 }
 
 export interface AppointmentsListResponse {

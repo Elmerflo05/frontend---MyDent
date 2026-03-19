@@ -77,39 +77,44 @@ export class ConsentDocumentService {
     let contenidoProcesado = contenido;
 
     // ===== REEMPLAZAR PÁRRAFO INTRODUCTORIO (paciente y representante legal) =====
-    // Busca el párrafo <p> que contiene "Yo" y "representante legal de" y lo reemplaza completo
-    // Esto evita el bug donde los regex individuales interferían entre sí (ej: DNI duplicado)
-    const introRegex = /(<p[^>]*>\s*)Yo[,]?\s*(?:paciente)?[\s\S]*?en calidad de representante legal de[\s\S]*?(\s*<\/p>)/;
-    const introMatch = contenidoProcesado.match(introRegex);
+    // Busca el primer <p> que contiene "Yo" seguido de puntos (el intro de todos los templates)
+    // Funciona con TODOS los formatos de la BD: estándar, con representante, y "COMO PACIENTE"
+    const allParagraphs = contenidoProcesado.match(/<p[^>]*>[\s\S]*?<\/p>/g) || [];
+    let introParagraph = '';
 
-    if (introMatch) {
-      let newIntro: string;
+    for (const p of allParagraphs) {
+      if (/Yo[,]?\s/.test(p) && /\.{5,}/.test(p)) {
+        introParagraph = p;
+        break;
+      }
+    }
 
+    if (introParagraph) {
+      // Preservar el tag <p> original con sus estilos
+      const pTag = introParagraph.match(/<p[^>]*>/)?.[0] || '<p style="text-align: justify; margin-bottom: 15px;">';
+
+      // Si DECLARO está en el mismo <p>, preservar esa porción
+      let declaroPortion = '';
+      const declaroStrongIdx = introParagraph.indexOf('<strong>DECLARO</strong>');
+      const declaroPlainIdx = introParagraph.indexOf('DECLARO');
+
+      if (declaroStrongIdx > -1) {
+        declaroPortion = ' ' + introParagraph.substring(declaroStrongIdx).replace(/<\/p>\s*$/, '');
+      } else if (declaroPlainIdx > -1 && introParagraph.indexOf('<strong>COMO PACIENTE</strong>') > -1) {
+        // Formato "COMO PACIENTE" donde DECLARO es texto plano
+        declaroPortion = ' ' + introParagraph.substring(declaroPlainIdx).replace(/<\/p>\s*$/, '');
+      }
+
+      let newParagraph: string;
       if (formData.tieneRepresentante && formData.representanteNombre) {
         // CON REPRESENTANTE: El representante autoriza en nombre del menor
-        newIntro = `${introMatch[1]}Yo <strong>${formData.representanteNombre}</strong>, con DNI No. <strong>${formData.representanteDni}</strong>, mayor de edad, y con domicilio en <strong>${formData.representanteDomicilio}</strong>, en calidad de representante legal del menor <strong>${formData.pacienteNombre}</strong>, con DNI No. <strong>${formData.pacienteDni}</strong> y con domicilio en <strong>${formData.pacienteDomicilio}</strong>${introMatch[2]}`;
+        newParagraph = `${pTag}Yo <strong>${formData.representanteNombre}</strong>, con DNI No. <strong>${formData.representanteDni}</strong>, mayor de edad, y con domicilio en <strong>${formData.representanteDomicilio}</strong>, en calidad de representante legal del menor <strong>${formData.pacienteNombre}</strong>, con DNI No. <strong>${formData.pacienteDni}</strong> y con domicilio en <strong>${formData.pacienteDomicilio}</strong>${declaroPortion}</p>`;
       } else {
         // SIN REPRESENTANTE: Solo el paciente (adulto)
-        newIntro = `${introMatch[1]}Yo <strong>${formData.pacienteNombre}</strong> (como paciente), con DNI No. <strong>${formData.pacienteDni}</strong>, mayor de edad, y con domicilio en <strong>${formData.pacienteDomicilio}</strong>${introMatch[2]}`;
+        newParagraph = `${pTag}Yo <strong>${formData.pacienteNombre}</strong> (como paciente), con DNI No. <strong>${formData.pacienteDni}</strong>, mayor de edad, y con domicilio en <strong>${formData.pacienteDomicilio}</strong>${declaroPortion}</p>`;
       }
 
-      contenidoProcesado = contenidoProcesado.replace(introRegex, newIntro);
-    } else {
-      // Fallback para formato "COMO PACIENTE" (cirugia-apical, cirugia-tercera-molar)
-      const comoPacienteRegex = /Yo,\s*\.+\s*<strong>COMO PACIENTE<\/strong>/;
-      if (comoPacienteRegex.test(contenidoProcesado)) {
-        if (formData.tieneRepresentante && formData.representanteNombre) {
-          contenidoProcesado = contenidoProcesado.replace(
-            comoPacienteRegex,
-            `Yo, <strong>${formData.representanteNombre}</strong>, con DNI No. <strong>${formData.representanteDni}</strong>, en calidad de representante legal del menor <strong>${formData.pacienteNombre}</strong>, con DNI No. <strong>${formData.pacienteDni}</strong>`
-          );
-        } else {
-          contenidoProcesado = contenidoProcesado.replace(
-            comoPacienteRegex,
-            `Yo, <strong>${formData.pacienteNombre}</strong>, con DNI No. <strong>${formData.pacienteDni}</strong>, <strong>COMO PACIENTE</strong>`
-          );
-        }
-      }
+      contenidoProcesado = contenidoProcesado.replace(introParagraph, newParagraph);
     }
 
     // Reemplazar nombre del Cirujano Dentista en el cuerpo del documento

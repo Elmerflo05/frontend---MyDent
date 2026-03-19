@@ -14,6 +14,8 @@ interface AppointmentStep3Props {
   sedesDisponibles: any[];
   getDoctorName: (doctorId: string, doctors: UserType[]) => string;
   getSedeName: (sedeId: string, sedesDisponibles: any[]) => string;
+  esClienteNuevo?: boolean;
+  primeraConsultaDisponible?: boolean;
 }
 
 export const AppointmentStep3: React.FC<AppointmentStep3Props> = ({
@@ -22,7 +24,9 @@ export const AppointmentStep3: React.FC<AppointmentStep3Props> = ({
   doctors,
   sedesDisponibles,
   getDoctorName,
-  getSedeName
+  getSedeName,
+  esClienteNuevo = true,
+  primeraConsultaDisponible = false
 }) => {
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -114,18 +118,31 @@ export const AppointmentStep3: React.FC<AppointmentStep3Props> = ({
             <p className="font-medium">{getDoctorName(formData.doctorId, doctors)}</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Método de Pago</p>
-              <p className="font-medium">
-                {PAYMENT_METHODS_DETAILED.find(m => m.id === formData.paymentMethod)?.name}
-              </p>
+          {/* Mostrar pago/voucher solo si el paciente pagó (cliente nuevo sin primera consulta gratis) */}
+          {formData.paymentMethod ? (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-500">Método de Pago</p>
+                <p className="font-medium">
+                  {PAYMENT_METHODS_DETAILED.find(m => m.id === formData.paymentMethod)?.name}
+                </p>
+              </div>
+              {formData.paymentVoucher && (
+                <div>
+                  <p className="text-sm text-gray-500">Voucher</p>
+                  <p className="font-medium text-green-600">Subido</p>
+                </div>
+              )}
             </div>
-            <div>
-              <p className="text-sm text-gray-500">Voucher</p>
-              <p className="font-medium text-green-600">✅ Subido</p>
+          ) : !esClienteNuevo ? (
+            <div className="bg-teal-50 p-3 rounded-lg border border-teal-200">
+              <p className="text-sm font-medium text-teal-700">Paciente continuador - Sin cobro de consulta</p>
             </div>
-          </div>
+          ) : primeraConsultaDisponible ? (
+            <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+              <p className="text-sm font-medium text-green-700">Primera consulta gratis - Beneficio Plan de Salud</p>
+            </div>
+          ) : null}
 
           {formData.notes && (
             <div>
@@ -175,7 +192,9 @@ export const AppointmentStep3: React.FC<AppointmentStep3Props> = ({
             <p className="font-medium mb-2">¿Qué sigue?</p>
             <ul className="space-y-1 text-xs">
               <li>• Te contactaremos en las próximas 2-4 horas</li>
-              <li>• Verificaremos tu voucher de pago</li>
+              {esClienteNuevo && !primeraConsultaDisponible && (
+                <li>• Verificaremos tu voucher de pago</li>
+              )}
               <li>• Confirmaremos la disponibilidad del doctor</li>
               <li>• Recibirás una confirmación final por {formData.preferredContact === 'phone' ? 'teléfono' : 'email'}</li>
             </ul>

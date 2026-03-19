@@ -164,6 +164,8 @@ const ConsentimientosInformados = () => {
 
   // Ref para el contenido editable del consentimiento
   const contentRef = useRef<HTMLDivElement>(null);
+  // Flag para saber si el usuario editó manualmente el documento
+  const [isManuallyEdited, setIsManuallyEdited] = useState(false);
 
   // Estado para tabs - Pacientes inician en firmados, otros en plantillas
   const isPatient = user?.role === 'patient';
@@ -206,17 +208,24 @@ const ConsentimientosInformados = () => {
     setShowViewer(true);
   };
 
-  // Establecer contenido inicial cuando se abre el visor
+  // Auto-actualizar el contenido cuando cambian los datos del formulario
+  // Se detiene si el usuario editó manualmente el documento
   useEffect(() => {
-    if (showViewer && selectedConsentimiento && contentRef.current) {
+    if (showViewer && selectedConsentimiento && contentRef.current && !isManuallyEdited) {
       const processed = ConsentDocumentService.processConsentContent(
         selectedConsentimiento.contenido,
         formData
       );
       contentRef.current.innerHTML = processed;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showViewer, selectedConsentimiento]);
+  }, [showViewer, selectedConsentimiento, formData, isManuallyEdited]);
+
+  // Resetear flag de edición manual cuando se cierra el visor
+  useEffect(() => {
+    if (!showViewer) {
+      setIsManuallyEdited(false);
+    }
+  }, [showViewer]);
 
   // Actualizar el contenido del documento con los datos actuales del formulario
   const handleRefreshContent = () => {
@@ -226,6 +235,7 @@ const ConsentimientosInformados = () => {
         formData
       );
       contentRef.current.innerHTML = processed;
+      setIsManuallyEdited(false);
     }
   };
 
@@ -592,6 +602,7 @@ const ConsentimientosInformados = () => {
                   ref={contentRef}
                   contentEditable
                   suppressContentEditableWarning
+                  onInput={() => { if (!isManuallyEdited) setIsManuallyEdited(true); }}
                   className="prose max-w-none bg-white p-4 rounded-lg border-2 border-gray-300 focus:border-blue-400 outline-none min-h-[300px] cursor-text"
                 />
               </div>

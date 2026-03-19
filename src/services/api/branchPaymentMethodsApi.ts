@@ -8,7 +8,7 @@ import httpClient, { ApiResponse } from './httpClient';
 export interface BranchPaymentMethod {
   payment_method_id: number;
   branch_id: number;
-  method_type: 'bank_transfer' | 'yape' | 'plin' | 'cash';
+  method_type: 'bank_transfer' | 'yape' | 'plin' | 'cash' | 'credit_card' | 'debit_card' | 'other';
   method_name: string;
   bank_name?: string;
   account_number?: string;
@@ -32,7 +32,7 @@ export interface PaymentMethodResponse {
 
 export interface CreatePaymentMethodData {
   branch_id: number;
-  method_type: 'bank_transfer' | 'yape' | 'plin' | 'cash';
+  method_type: 'bank_transfer' | 'yape' | 'plin' | 'cash' | 'credit_card' | 'debit_card' | 'other';
   method_name: string;
   bank_name?: string;
   account_number?: string;
