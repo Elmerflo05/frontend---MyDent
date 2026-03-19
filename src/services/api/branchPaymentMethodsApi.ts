@@ -15,6 +15,7 @@ export interface BranchPaymentMethod {
   account_holder?: string;
   phone_number?: string;
   additional_info?: string;
+  qr_image_url?: string;
   is_active: boolean;
   branch_name?: string;
 }
@@ -157,6 +158,40 @@ class BranchPaymentMethodsApiService {
    */
   async togglePaymentMethodStatus(paymentMethodId: number, isActive: boolean): Promise<BranchPaymentMethod> {
     return this.updatePaymentMethod(paymentMethodId, { is_active: isActive });
+  }
+
+  /**
+   * Sube imagen QR para un método de pago (Yape/Plin)
+   */
+  async uploadQrImage(paymentMethodId: number, file: File): Promise<BranchPaymentMethod> {
+    const formData = new FormData();
+    formData.append('qr_image', file);
+
+    const response = await httpClient.post<PaymentMethodResponse>(
+      `/branch-payment-methods/${paymentMethodId}/qr-image`,
+      formData
+    );
+
+    if (!response.success || !response.data) {
+      throw new Error(response.message || 'Error al subir imagen QR');
+    }
+
+    return response.data;
+  }
+
+  /**
+   * Elimina imagen QR de un método de pago
+   */
+  async deleteQrImage(paymentMethodId: number): Promise<BranchPaymentMethod> {
+    const response = await httpClient.delete<PaymentMethodResponse>(
+      `/branch-payment-methods/${paymentMethodId}/qr-image`
+    );
+
+    if (!response.success || !response.data) {
+      throw new Error(response.message || 'Error al eliminar imagen QR');
+    }
+
+    return response.data;
   }
 }
 

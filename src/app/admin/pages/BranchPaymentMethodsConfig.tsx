@@ -21,13 +21,16 @@ import {
   Loader2,
   Info,
   Eye,
-  EyeOff
+  EyeOff,
+  ImagePlus
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { branchPaymentMethodsApi, BranchPaymentMethod } from '@/services/api/branchPaymentMethodsApi';
 import httpClient from '@/services/api/httpClient';
 import { toast } from 'sonner';
 import Swal from 'sweetalert2';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4015/api';
 
 interface Branch {
   branch_id: number;
@@ -78,6 +81,7 @@ export default function BranchPaymentMethodsConfig() {
   const [editingMethod, setEditingMethod] = useState<BranchPaymentMethod | null>(null);
   const [formData, setFormData] = useState(initialFormData);
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadingQrId, setUploadingQrId] = useState<number | null>(null);
 
   // Cargar sedes
   useEffect(() => {
@@ -276,6 +280,42 @@ export default function BranchPaymentMethodsConfig() {
     setFormData(initialFormData);
   };
 
+  const handleQrUpload = async (method: BranchPaymentMethod, file: File) => {
+    try {
+      setUploadingQrId(method.payment_method_id);
+      await branchPaymentMethodsApi.uploadQrImage(method.payment_method_id, file);
+      toast.success('Imagen QR subida exitosamente');
+      if (selectedBranchId) loadPaymentMethods(selectedBranchId);
+    } catch (error) {
+      console.error('Error uploading QR:', error);
+      toast.error('Error al subir imagen QR');
+    } finally {
+      setUploadingQrId(null);
+    }
+  };
+
+  const handleQrDelete = async (method: BranchPaymentMethod) => {
+    const result = await Swal.fire({
+      title: 'Eliminar QR',
+      text: `¿Eliminar la imagen QR de "${method.method_name}"?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await branchPaymentMethodsApi.deleteQrImage(method.payment_method_id);
+      toast.success('Imagen QR eliminada');
+      if (selectedBranchId) loadPaymentMethods(selectedBranchId);
+    } catch (error) {
+      console.error('Error deleting QR:', error);
+      toast.error('Error al eliminar imagen QR');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -387,6 +427,61 @@ export default function BranchPaymentMethodsConfig() {
                             <p className="text-gray-400 italic mt-1">{method.additional_info}</p>
                           )}
                         </div>
+                        {/* QR Image para Yape/Plin */}
+                        {(method.method_type === 'yape' || method.method_type === 'plin') && (
+                          <div className="mt-2 flex items-center gap-3">
+                            {method.qr_image_url ? (
+                              <>
+                                <img
+                                  src={`${API_BASE.replace('/api', '')}${method.qr_image_url}`}
+                                  alt="QR"
+                                  className="w-16 h-16 object-contain rounded border border-gray-200"
+                                />
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer">
+                                    Cambiar
+                                    <input
+                                      type="file"
+                                      accept="image/jpeg,image/png"
+                                      className="hidden"
+                                      onChange={(e) => {
+                                        const f = e.target.files?.[0];
+                                        if (f) handleQrUpload(method, f);
+                                        e.target.value = '';
+                                      }}
+                                    />
+                                  </label>
+                                  <button
+                                    onClick={() => handleQrDelete(method)}
+                                    className="text-xs text-red-500 hover:text-red-700 text-left"
+                                  >
+                                    Eliminar
+                                  </button>
+                                </div>
+                              </>
+                            ) : (
+                              <label className="flex items-center gap-1.5 text-xs text-cyan-600 hover:text-cyan-800 cursor-pointer px-2 py-1 border border-dashed border-cyan-300 rounded-lg">
+                                {uploadingQrId === method.payment_method_id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <ImagePlus className="w-3.5 h-3.5" />
+                                )}
+                                Subir QR
+                                <input
+                                  type="file"
+                                  accept="image/jpeg,image/png"
+                                  className="hidden"
+                                  disabled={uploadingQrId === method.payment_method_id}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) handleQrUpload(method, f);
+                                    e.target.value = '';
+                                  }}
+                                />
+                              </label>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 

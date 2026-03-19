@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { User, Phone, CheckCircle, AlertCircle, FileText, Ticket, X, Loader2, CreditCard, DollarSign, Building2 } from 'lucide-react';
+import { User, Phone, CheckCircle, AlertCircle, FileText, Ticket, X, Loader2, CreditCard, DollarSign, Building2, QrCode } from 'lucide-react';
+
+const BACKEND_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4015';
 import type { AppointmentFormData, ValidatedCoupon } from '../hooks/useAppointmentForm';
 import type { User as UserType } from '@/types';
 import { getSpecialtyName, getWhatsAppBaseUrl, type PriceInfo } from '../utils/appointmentHelpers';
@@ -615,38 +617,80 @@ export const AppointmentStep2: React.FC<AppointmentStep2Props> = ({
                   </h5>
 
                   <div className="bg-white p-4 rounded border space-y-2">
-                    {/* Teléfono para Yape/Plin */}
-                    {selectedMethod.phone_number && (
-                      <p className="text-sm">
-                        <strong>Número:</strong>{' '}
-                        <span className="font-mono bg-gray-100 px-2 py-1 rounded">
-                          {selectedMethod.phone_number}
-                        </span>
-                      </p>
-                    )}
+                    {/* QR + Datos lado a lado para Yape/Plin */}
+                    {selectedMethod.qr_image_url ? (
+                      <div className="flex items-start gap-4">
+                        <img
+                          src={`${BACKEND_URL}${selectedMethod.qr_image_url}`}
+                          alt={`QR ${selectedMethod.method_name}`}
+                          className="w-28 h-28 object-contain rounded-lg border border-gray-200 bg-white flex-shrink-0"
+                        />
+                        <div className="space-y-1.5 min-w-0">
+                          {selectedMethod.phone_number && (
+                            <p className="text-sm">
+                              <strong>Número:</strong>{' '}
+                              <span className="font-mono bg-gray-100 px-2 py-1 rounded">
+                                {selectedMethod.phone_number}
+                              </span>
+                            </p>
+                          )}
+                          {selectedMethod.account_holder && (
+                            <p className="text-sm">
+                              <strong>Titular:</strong> {selectedMethod.account_holder}
+                            </p>
+                          )}
+                          {selectedMethod.bank_name && (
+                            <p className="text-sm">
+                              <strong>Banco:</strong> {selectedMethod.bank_name}
+                            </p>
+                          )}
+                          {selectedMethod.account_number && (
+                            <p className="text-sm">
+                              <strong>Número de Cuenta:</strong>{' '}
+                              <span className="font-mono bg-gray-100 px-2 py-1 rounded">
+                                {selectedMethod.account_number}
+                              </span>
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-1">Escanea el QR para pagar</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Teléfono para Yape/Plin */}
+                        {selectedMethod.phone_number && (
+                          <p className="text-sm">
+                            <strong>Número:</strong>{' '}
+                            <span className="font-mono bg-gray-100 px-2 py-1 rounded">
+                              {selectedMethod.phone_number}
+                            </span>
+                          </p>
+                        )}
 
-                    {/* Titular */}
-                    {selectedMethod.account_holder && (
-                      <p className="text-sm">
-                        <strong>Titular:</strong> {selectedMethod.account_holder}
-                      </p>
-                    )}
+                        {/* Titular */}
+                        {selectedMethod.account_holder && (
+                          <p className="text-sm">
+                            <strong>Titular:</strong> {selectedMethod.account_holder}
+                          </p>
+                        )}
 
-                    {/* Banco */}
-                    {selectedMethod.bank_name && (
-                      <p className="text-sm">
-                        <strong>Banco:</strong> {selectedMethod.bank_name}
-                      </p>
-                    )}
+                        {/* Banco */}
+                        {selectedMethod.bank_name && (
+                          <p className="text-sm">
+                            <strong>Banco:</strong> {selectedMethod.bank_name}
+                          </p>
+                        )}
 
-                    {/* Número de cuenta */}
-                    {selectedMethod.account_number && (
-                      <p className="text-sm">
-                        <strong>Número de Cuenta:</strong>{' '}
-                        <span className="font-mono bg-gray-100 px-2 py-1 rounded">
-                          {selectedMethod.account_number}
-                        </span>
-                      </p>
+                        {/* Número de cuenta */}
+                        {selectedMethod.account_number && (
+                          <p className="text-sm">
+                            <strong>Número de Cuenta:</strong>{' '}
+                            <span className="font-mono bg-gray-100 px-2 py-1 rounded">
+                              {selectedMethod.account_number}
+                            </span>
+                          </p>
+                        )}
+                      </>
                     )}
 
                     {/* Información adicional */}
