@@ -160,8 +160,8 @@ const RequestAppointmentModal = ({ isOpen, onClose, selectedDate, onSuccess }: R
         // Callback de éxito
         onSuccess?.(appointmentId);
 
-        // Mostrar paso de confirmación
-        setStep(3);
+        // Cerrar el modal inmediatamente
+        handleClose();
       } else {
         const errorMsg = response?.message || response?.error || 'Error al crear la cita. Por favor intenta nuevamente.';
         console.error('Error en respuesta:', errorMsg);

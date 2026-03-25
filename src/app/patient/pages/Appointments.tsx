@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Calendar,
   Plus,
@@ -11,7 +11,9 @@ import {
   List,
   Grid3X3,
   Wifi,
-  WifiOff
+  WifiOff,
+  CheckCircle,
+  X
 } from 'lucide-react';
 import ResumenCitas from '@/components/patient/ResumenCitas';
 import ListaCitas from '@/components/patient/ListaCitas';
@@ -46,6 +48,8 @@ const PatientAppointments = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [vista, setVista] = useState<Vista>('lista');
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadAppointments();
@@ -205,8 +209,21 @@ const PatientAppointments = () => {
 
   // Manejar éxito al crear cita
   const handleAppointmentSuccess = () => {
-    loadAppointments(); // Recargar citas
+    loadAppointments();
+    setShowSuccessPopup(true);
+    // Auto-cerrar después de 5 segundos
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    successTimerRef.current = setTimeout(() => {
+      setShowSuccessPopup(false);
+    }, 5000);
   };
+
+  // Limpiar timer al desmontar
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    };
+  }, []);
 
   const filteredAppointments = appointments.filter(appointment => {
     const matchesFilter = selectedFilter === 'all' || appointment.status === selectedFilter;
@@ -406,6 +423,61 @@ const PatientAppointments = () => {
           onSuccess={handleAppointmentSuccess}
         />
       </motion.div>
+
+      {/* Popup de éxito al solicitar cita */}
+      {createPortal(
+        <AnimatePresence>
+          {showSuccessPopup && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+              onClick={() => setShowSuccessPopup(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.8, opacity: 0, y: 20 }}
+                transition={{ type: 'spring', duration: 0.5 }}
+                className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm mx-4 text-center relative"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => setShowSuccessPopup(false)}
+                  className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', delay: 0.2, duration: 0.5 }}
+                  className="w-20 h-20 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-5"
+                >
+                  <CheckCircle className="w-10 h-10 text-green-600" />
+                </motion.div>
+
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  ¡Solicitud Enviada!
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Tu solicitud de cita ha sido enviada exitosamente. Te contactaremos pronto para confirmar tu cita.
+                </p>
+
+                <button
+                  onClick={() => setShowSuccessPopup(false)}
+                  className="w-full px-6 py-3 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors font-medium shadow-sm"
+                >
+                  Entendido
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       {/* Botón Flotante Solicitar Cita - Portal al body */}
       {createPortal(
