@@ -41,7 +41,7 @@ export interface SaveProgressResult {
   prescriptionId?: number;
 }
 
-export const saveConsultationProgress = async (params: SaveProgressParams): Promise<boolean> => {
+export const saveConsultationProgress = async (params: SaveProgressParams): Promise<number | false> => {
   const {
     selectedPatient,
     currentRecord,
@@ -64,6 +64,7 @@ export const saveConsultationProgress = async (params: SaveProgressParams): Prom
   try {
     const patientIdNumeric = parseInt(selectedPatient.id, 10);
     const userIdNumeric = user?.id ? parseInt(user.id, 10) : undefined;
+    let consultationId: number | undefined;
 
     // Obtener branch_id: primero el directo, luego el primer elemento de sedesAcceso
     // (definido aquí para que esté disponible en todos los bloques)
@@ -155,7 +156,7 @@ export const saveConsultationProgress = async (params: SaveProgressParams): Prom
       const savedConsultation = await consultationsApi.upsertConsultation(consultationData);
 
       if (savedConsultation.success && savedConsultation.data) {
-        const consultationId = savedConsultation.data.consultation_id;
+        consultationId = savedConsultation.data.consultation_id;
 
         // Subir imágenes pendientes extraorales
         if (currentRecord.pendingExtraoralImages && currentRecord.pendingExtraoralImages.length > 0) {
@@ -448,7 +449,7 @@ export const saveConsultationProgress = async (params: SaveProgressParams): Prom
     }
 
     toast.success('Progreso guardado exitosamente en la base de datos');
-    return true;
+    return consultationId || false;
   } catch (error) {
     console.error('Error al guardar el progreso:', error);
     toast.error('Error al guardar el progreso');

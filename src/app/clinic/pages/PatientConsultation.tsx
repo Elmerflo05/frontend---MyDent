@@ -755,8 +755,12 @@ const PatientConsultation = () => {
       });
 
       if (success) {
+        // saveConsultationProgress retorna el consultationId directamente (no depende del state async)
+        const consultationIdForTreatmentPlan = typeof success === 'number'
+          ? success
+          : (currentRecord?.consultationId || currentRecord?.consultation_id || currentRecord?.lastConsultationId);
+
         // Si estamos en el paso 8 (Plan de Tratamiento), guardar tambien el plan
-        const consultationIdForTreatmentPlan = currentRecord?.consultationId || currentRecord?.consultation_id || currentRecord?.lastConsultationId;
         if (activeStep === 8 && consultationIdForTreatmentPlan) {
           const treatmentPlanResult = await saveConsultationTreatmentPlan({
             consultationId: consultationIdForTreatmentPlan,
@@ -764,7 +768,9 @@ const PatientConsultation = () => {
             treatmentObservations,
             user
           });
-
+          if (!treatmentPlanResult.success) {
+            console.error('Error al guardar plan de tratamiento');
+          }
         }
 
         setUnsavedChanges(false);
@@ -951,7 +957,10 @@ const PatientConsultation = () => {
             setUnsavedChanges={setUnsavedChanges}
             onBack={goToStep7}
             onSave={handleSaveProgress}
-            onContinue={markStep8Completed}
+            onContinue={async () => {
+              await handleSaveProgress();
+              markStep8Completed();
+            }}
             readOnly={readOnlyMode}
           />
         );

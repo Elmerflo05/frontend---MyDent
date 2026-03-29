@@ -419,7 +419,11 @@ const BudgetStepComponent = ({
     calcDiscountAmount?: number,
     calcDiscountType?: string | null,
     calcDiscountValue?: number,
-    calcGrandTotal?: number
+    calcGrandTotal?: number,
+    calcDefinitiveDiagnosisTotal?: number,
+    calcTreatmentsTotal?: number,
+    calcAdditionalServicesTotal?: number,
+    calcExamsTotal?: number
   ) => {
     if (!consultationId) return;
 
@@ -435,7 +439,11 @@ const BudgetStepComponent = ({
         discountType: calcDiscountType,
         discountValue: calcDiscountValue,
         discountAmount: calcDiscountAmount,
-        grandTotal: calcGrandTotal
+        grandTotal: calcGrandTotal,
+        definitiveDiagnosisTotal: calcDefinitiveDiagnosisTotal,
+        treatmentsTotal: calcTreatmentsTotal,
+        additionalServicesTotal: calcAdditionalServicesTotal,
+        examsTotal: calcExamsTotal
       });
 
       if (response.success && response.data) {
@@ -1378,7 +1386,7 @@ const BudgetStepComponent = ({
             <button
               onClick={async () => {
                 // Guardar presupuesto en el backend con los totales calculados
-                await saveBudgetToBackend(subtotal, discountAmount, discountType, discountValue, consolidatedTotal);
+                await saveBudgetToBackend(subtotal, discountAmount, discountType, discountValue, consolidatedTotal, definitiveDiagnosisTotal, treatmentsTotal, additionalServicesTotal, examsTotal);
                 // Tambien ejecutar handleSaveProgress para guardar currentRecord
                 await handleSaveProgress();
               }}
@@ -1395,7 +1403,7 @@ const BudgetStepComponent = ({
             <button
               onClick={async () => {
                 // Guardar presupuesto en el backend antes de continuar
-                await saveBudgetToBackend(subtotal, discountAmount, discountType, discountValue, consolidatedTotal);
+                await saveBudgetToBackend(subtotal, discountAmount, discountType, discountValue, consolidatedTotal, definitiveDiagnosisTotal, treatmentsTotal, additionalServicesTotal, examsTotal);
                 // Actualizar el currentRecord local para consistencia
                 setCurrentRecord((prev: any) => ({
                   ...prev,

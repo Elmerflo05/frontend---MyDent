@@ -773,7 +773,6 @@ const PatientMedicalHistory = () => {
     const treatmentPlan = selectedConsultation.treatment_plan;
     const definitiveDiagnosis = selectedConsultation.definitive_diagnosis || [];
 
-    // Si no hay plan de tratamiento ni diagnóstico definitivo
     if ((!treatmentPlan || !treatmentPlan.items || treatmentPlan.items.length === 0) && definitiveDiagnosis.length === 0) {
       return (
         <div className="text-center py-6 text-gray-500">
@@ -783,212 +782,175 @@ const PatientMedicalHistory = () => {
       );
     }
 
-    // Calcular total del diagnóstico definitivo
-    const diagnosisTotal = definitiveDiagnosis.reduce((acc, d) => acc + (Number(d.price) || 0), 0);
-
-    // Obtener items de tratamiento (todos los items)
+    const diagnosisTotal = definitiveDiagnosis.reduce((acc: number, d: any) => acc + (Number(d.price) || 0), 0);
     const treatmentItems = treatmentPlan?.items || [];
-
-    // Obtener servicios adicionales (ortodoncia, implantes, prótesis)
     const additionalServices = treatmentPlan?.additional_services || [];
+    const treatmentsItemsTotal = treatmentItems.reduce((acc: number, item: any) => acc + (Number(item.total_amount) || 0), 0);
+    const additionalServicesTotal = additionalServices.reduce((acc: number, s: any) => acc + (Number(s.monto_total) || 0), 0);
+    const grandTotal = Number(treatmentPlan?.grand_total) || (diagnosisTotal + treatmentsItemsTotal + additionalServicesTotal);
+    const svcLabels: Record<string, string> = { orthodontic: 'Ortodoncia', implant: 'Implante', prosthesis: 'Prótesis' };
+
+    // Helper para section header
+    const SectionHeader = ({ color, icon: Icon, title, count, total }: { color: string; icon: any; title: string; count?: number; total?: number }) => (
+      <div className={`px-3 py-1.5 ${color} flex items-center justify-between`}>
+        <div className="flex items-center gap-1.5">
+          <Icon className="w-3.5 h-3.5 text-white/80" />
+          <span className="text-white font-semibold text-sm">{title}</span>
+          {count != null && <span className="bg-white/20 text-white text-xs px-1.5 rounded-full leading-none">{count}</span>}
+        </div>
+        {total != null && <span className="text-white font-bold text-sm">S/ {total.toFixed(2)}</span>}
+      </div>
+    );
 
     return (
-      <div className="space-y-4">
-        {/* Nombre del plan si existe */}
-        {treatmentPlan?.plan_name && (
-          <h4 className="font-semibold text-gray-900 text-base">{treatmentPlan.plan_name}</h4>
-        )}
+      <div className="grid grid-cols-2 gap-3">
 
-        {/* 1. DIAGNÓSTICO DEFINITIVO - con datos completos de dientes y superficies */}
-        {definitiveDiagnosis.length > 0 && (
-          <div className="bg-purple-50 border border-purple-200 rounded-lg overflow-hidden">
-            <div className="px-3 py-2 bg-gradient-to-r from-purple-500 to-violet-500 flex items-center justify-between">
-              <span className="text-white font-semibold text-sm">Diagnóstico Definitivo</span>
-              <span className="text-white font-bold text-sm">
-                S/ {diagnosisTotal.toFixed(2)}
-              </span>
-            </div>
-            <div className="p-2">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-purple-700 uppercase">
-                    <th className="text-left py-1 px-2 font-semibold">Pieza</th>
-                    <th className="text-left py-1 px-2 font-semibold">Procedimiento</th>
-                    <th className="text-left py-1 px-1 font-semibold">Superficies</th>
-                    <th className="text-right py-1 px-2 font-semibold w-24">Precio</th>
+        {/* ═══ COL IZQUIERDA: DIAGNÓSTICO DEFINITIVO ═══ */}
+        <div className="col-span-2 lg:col-span-1 border border-gray-200 rounded-lg overflow-hidden flex flex-col">
+          <SectionHeader color="bg-gradient-to-r from-violet-600 to-purple-600" icon={Stethoscope} title="Diagnóstico Definitivo" count={definitiveDiagnosis.length} total={diagnosisTotal} />
+          {definitiveDiagnosis.length > 0 ? (
+            <div className="flex-1 max-h-[360px] overflow-y-auto">
+              <table className="w-full text-xs table-fixed">
+                <colgroup>
+                  <col className="w-[40px]" />
+                  <col />
+                  <col className="w-[120px]" />
+                  <col className="w-[36px]" />
+                  <col className="w-[80px]" />
+                </colgroup>
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-gray-50 text-[10px] text-gray-500 uppercase">
+                    <th className="py-1 px-1.5 font-medium text-left">#</th>
+                    <th className="py-1 px-1.5 font-medium text-left">Condición</th>
+                    <th className="py-1 px-1.5 font-medium text-left">Procedimiento</th>
+                    <th className="py-1 font-medium text-center">Sup</th>
+                    <th className="py-1 px-1.5 font-medium text-right">Precio</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {definitiveDiagnosis.map((diag, idx) => (
-                    <tr key={idx} className="border-t border-purple-100">
-                      <td className="py-1.5 px-2 text-gray-800 font-medium">
-                        {diag.tooth_number || '-'}
-                        {diag.tooth_name && <span className="text-purple-500 text-xs ml-1">({diag.tooth_name})</span>}
+                <tbody className="divide-y divide-gray-50">
+                  {definitiveDiagnosis.map((d: any, i: number) => (
+                    <tr key={i} className="hover:bg-violet-50/30">
+                      <td className="py-1 px-1.5"><span className="inline-flex items-center justify-center w-6 h-6 rounded bg-violet-100 text-violet-700 font-bold text-[10px]">{d.tooth_number}</span></td>
+                      <td className="py-1 px-1.5 truncate" title={`${d.condition_label} - ${d.tooth_name}`}>
+                        <span className="font-medium text-gray-900">{d.condition_label || d.condition_name}</span>
+                        {d.cie10_code && <span className="ml-1 text-[10px] text-gray-400 font-mono">{d.cie10_code}</span>}
                       </td>
-                      <td className="py-1.5 px-2 text-gray-800">
-                        {diag.condition_label || diag.condition_name || '-'}
-                      </td>
-                      <td className="py-1.5 px-1 text-gray-600 text-xs">
-                        {diag.surfaces && diag.surfaces.length > 0 ? diag.surfaces.join(', ') : '-'}
-                      </td>
-                      <td className="py-1.5 px-2 text-right font-medium text-purple-700">
-                        S/ {Number(diag.price || 0).toFixed(2)}
-                      </td>
+                      <td className="py-1 px-1.5 text-gray-500 truncate" title={d.selected_procedure_name || ''}>{d.selected_procedure_name || '-'}</td>
+                      <td className="py-1 text-center text-[10px] text-violet-600 font-medium">{d.surfaces?.length > 0 ? d.surfaces.join(',') : '-'}</td>
+                      <td className="py-1 px-1.5 text-right font-semibold text-gray-800 whitespace-nowrap">S/ {Number(d.price || 0).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="flex-1 flex items-center justify-center py-4 text-xs text-gray-400">Sin diagnóstico registrado</div>
+          )}
+        </div>
 
-        {/* 2. TRATAMIENTOS */}
-        {treatmentItems.map((item, index) => {
-          const hasConditions = item.conditions && item.conditions.length > 0;
-          return (
-            <div key={`treat-${index}`} className="bg-emerald-50 border border-emerald-200 rounded-lg overflow-hidden">
-              <div className="px-3 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-between">
-                <span className="text-white font-semibold text-sm">{item.treatment_name}</span>
-                <span className="text-white font-bold text-sm">
-                  S/ {Number(item.total_amount).toFixed(2)}
-                </span>
+        {/* ═══ COL DERECHA: RESUMEN + SERVICIOS ═══ */}
+        <div className="col-span-2 lg:col-span-1 flex flex-col gap-2">
+
+          {/* RESUMEN DE PRECIOS */}
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <SectionHeader color="bg-gray-800" icon={Receipt} title="Información de Precios" />
+            <div className="px-3 py-2 text-sm space-y-1.5">
+              <div className="flex justify-between"><span className="text-gray-500">Diagnóstico Definitivo</span><span className="font-medium">S/ {(Number(treatmentPlan?.definitive_diagnosis_total) || diagnosisTotal).toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Tratamientos del Plan</span><span className="font-medium">S/ {(Number(treatmentPlan?.treatments_total) || treatmentsItemsTotal).toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Servicios Adicionales</span><span className="font-medium">S/ {(Number(treatmentPlan?.additional_services_total) || additionalServicesTotal).toFixed(2)}</span></div>
+              <div className="border-t border-gray-200 pt-1.5 flex justify-between">
+                <span className="font-bold text-gray-900">Precio Total</span>
+                <span className="font-bold text-emerald-600 text-base">S/ {grandTotal.toFixed(2)}</span>
               </div>
-              {hasConditions && (
-                <div className="p-2">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-xs text-emerald-700 uppercase">
-                        <th className="text-left py-1 px-2 font-semibold">Descripción</th>
-                        <th className="text-center py-1 px-1 font-semibold w-12">Cant.</th>
-                        <th className="text-right py-1 px-1 font-semibold w-20">Precio</th>
-                        <th className="text-right py-1 px-2 font-semibold w-24">Subtotal</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {item.conditions.map((cond, cIdx) => (
-                        <tr key={cIdx} className="border-t border-emerald-100">
-                          <td className="py-1.5 px-2 text-gray-800">{cond.label}</td>
-                          <td className="py-1.5 px-1 text-center text-gray-600">{cond.quantity}</td>
-                          <td className="py-1.5 px-1 text-right text-gray-600">S/ {Number(cond.price).toFixed(2)}</td>
-                          <td className="py-1.5 px-2 text-right font-medium text-emerald-700">
-                            S/ {Number(cond.subtotal).toFixed(2)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {treatmentPlan?.has_initial_payment && (
+                <div className="border-t border-gray-100 pt-1.5 flex gap-4 text-xs">
+                  <span className="text-gray-500">Pago inicial: <b className="text-amber-600">S/ {Number(treatmentPlan.initial_payment || 0).toFixed(2)}</b></span>
+                  {Number(treatmentPlan.monthly_payment) > 0 && <span className="text-gray-500">Mensual: <b>S/ {Number(treatmentPlan.monthly_payment).toFixed(2)}</b></span>}
                 </div>
               )}
-              {!hasConditions && (
-                <div className="p-2 text-center text-sm text-gray-500 italic">Sin detalles</div>
-              )}
-            </div>
-          );
-        })}
-
-        {/* 3. SERVICIOS ADICIONALES (Ortodoncia, Implantes, Prótesis) */}
-        {additionalServices.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg overflow-hidden">
-            <div className="px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-between">
-              <span className="text-white font-semibold text-sm">Servicios Adicionales</span>
-              <span className="text-white font-bold text-sm">
-                S/ {additionalServices.reduce((acc, s) => acc + (Number(s.monto_total) || 0), 0).toFixed(2)}
-              </span>
-            </div>
-            <div className="p-2">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-amber-700 uppercase">
-                    <th className="text-left py-1 px-2 font-semibold">Servicio</th>
-                    <th className="text-left py-1 px-1 font-semibold">Tipo</th>
-                    <th className="text-right py-1 px-1 font-semibold w-20">Inicial</th>
-                    <th className="text-right py-1 px-1 font-semibold w-20">Mensual</th>
-                    <th className="text-right py-1 px-2 font-semibold w-24">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {additionalServices.map((service, idx) => {
-                    const serviceTypeLabels: Record<string, string> = {
-                      orthodontic: 'Ortodoncia',
-                      implant: 'Implante',
-                      prosthesis: 'Prótesis'
-                    };
-                    return (
-                      <tr key={idx} className="border-t border-amber-100">
-                        <td className="py-1.5 px-2 text-gray-800">
-                          {service.service_name}
-                          {service.modality && (
-                            <span className="text-amber-600 text-xs ml-1">({service.modality})</span>
-                          )}
-                        </td>
-                        <td className="py-1.5 px-1 text-gray-600 text-xs">
-                          {serviceTypeLabels[service.service_type] || service.service_type}
-                        </td>
-                        <td className="py-1.5 px-1 text-right text-gray-600">
-                          S/ {Number(service.inicial || 0).toFixed(2)}
-                        </td>
-                        <td className="py-1.5 px-1 text-right text-gray-600">
-                          S/ {Number(service.mensual || 0).toFixed(2)}
-                        </td>
-                        <td className="py-1.5 px-2 text-right font-medium text-amber-700">
-                          S/ {Number(service.monto_total || 0).toFixed(2)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
             </div>
           </div>
-        )}
 
-        {/* Resumen de costos */}
-        {treatmentPlan && (
-          <div className="bg-gradient-to-r from-gray-800 to-gray-900 text-white p-4 rounded-lg">
-            <h5 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Resumen del Plan</h5>
-            <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-300">Diagnóstico Definitivo:</span>
-                <span className="font-medium">S/ {Number(treatmentPlan.definitive_diagnosis_total || diagnosisTotal || 0).toFixed(2)}</span>
+          {/* SERVICIOS ADICIONALES */}
+          <div className="border border-gray-200 rounded-lg overflow-hidden flex-1">
+            <SectionHeader color="bg-gradient-to-r from-amber-500 to-orange-500" icon={Heart} title="Servicios Adicionales" count={additionalServices.length} total={additionalServicesTotal > 0 ? additionalServicesTotal : undefined} />
+            {additionalServices.length > 0 ? (
+              <div className="divide-y divide-gray-100">
+                {additionalServices.map((s: any, i: number) => {
+                  const mensual = Number(s.mensual) || 0;
+                  const inicial = Number(s.inicial) || 0;
+                  const total = Number(s.monto_total) || 0;
+                  const cuotas = Number(s.cuotas_pagadas_reales) || 0;
+                  const inicPagado = s.inicial_pagado_real === true || s.inicial_pagado_real === 't';
+                  const totalCuotas = mensual > 0 ? Math.ceil((total - inicial) / mensual) : 0;
+                  return (
+                    <div key={i} className="px-3 py-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-medium text-gray-900 text-sm">{s.service_name}</span>
+                          <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">{svcLabels[s.service_type] || s.service_type}</span>
+                          {s.modality && <span className="text-xs text-gray-400">{s.modality}</span>}
+                        </div>
+                        <span className="font-bold text-amber-700 text-sm ml-2 whitespace-nowrap">S/ {total.toFixed(2)}</span>
+                      </div>
+                      {(inicial > 0 || mensual > 0) && (
+                        <div className="flex gap-4 mt-1 text-xs text-gray-500">
+                          {inicial > 0 && <span>Inicial: <b className="text-gray-700">S/ {inicial.toFixed(0)}</b>{inicPagado && <CheckCircle className="w-3 h-3 text-emerald-500 inline ml-0.5" />}</span>}
+                          {mensual > 0 && <span>Mensual: <b className="text-gray-700">S/ {mensual.toFixed(0)}</b>{totalCuotas > 0 && ` (${cuotas}/${totalCuotas})`}</span>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-300">Tratamientos:</span>
-                <span className="font-medium">S/ {Number(treatmentPlan.treatments_total || 0).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-300">Servicios Adicionales:</span>
-                <span className="font-medium">S/ {Number(treatmentPlan.additional_services_total || 0).toFixed(2)}</span>
-              </div>
-              <hr className="my-2 border-gray-600" />
-              <div className="flex justify-between text-lg font-bold">
-                <span>TOTAL GENERAL:</span>
-                <span className="text-emerald-400">S/ {Number(treatmentPlan.grand_total || 0).toFixed(2)}</span>
-              </div>
-            </div>
-
-            {/* Pagos si existen */}
-            {treatmentPlan.has_initial_payment && (
-              <div className="mt-3 pt-3 border-t border-gray-600 space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-300">Pago inicial:</span>
-                  <span className="font-medium text-amber-400">S/ {Number(treatmentPlan.initial_payment || 0).toFixed(2)}</span>
-                </div>
-                {treatmentPlan.monthly_payment > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-300">Cuota mensual:</span>
-                    <span className="font-medium">S/ {Number(treatmentPlan.monthly_payment || 0).toFixed(2)}</span>
-                  </div>
-                )}
-              </div>
+            ) : (
+              <div className="py-3 text-center text-xs text-gray-400">Sin servicios adicionales registrados</div>
             )}
           </div>
-        )}
+        </div>
 
-        {/* Observaciones */}
+        {/* ═══ FILA INFERIOR: TRATAMIENTOS DEL PLAN ═══ */}
+        <div className="col-span-2 border border-gray-200 rounded-lg overflow-hidden">
+          <SectionHeader color="bg-gradient-to-r from-emerald-600 to-teal-600" icon={ClipboardList} title="Tratamientos del Plan" count={treatmentItems.length} total={treatmentsItemsTotal > 0 ? treatmentsItemsTotal : undefined} />
+          {treatmentItems.length > 0 ? (
+            <>
+              {treatmentItems.map((item: any, index: number) => {
+                const hasConditions = item.conditions && item.conditions.length > 0;
+                return (
+                  <div key={`t-${index}`} className={index > 0 ? 'border-t border-gray-200' : ''}>
+                    <div className="flex items-center justify-between px-3 py-1.5 bg-emerald-50/60">
+                      <span className="font-medium text-emerald-800 text-sm">{item.treatment_name}</span>
+                      <span className="font-semibold text-emerald-700 text-sm">S/ {Number(item.total_amount).toFixed(2)}</span>
+                    </div>
+                    {hasConditions && (
+                      <table className="w-full text-xs">
+                        <thead><tr className="text-[10px] text-gray-500 uppercase bg-gray-50/50">
+                          <th className="text-left py-1 px-3 font-medium">Descripción</th>
+                          <th className="text-center py-1 px-1 font-medium w-10">Ud</th>
+                          <th className="text-right py-1 px-2 font-medium w-20">P.U.</th>
+                          <th className="text-right py-1 px-3 font-medium w-20">Total</th>
+                        </tr></thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {item.conditions.map((c: any, ci: number) => (
+                            <tr key={ci}><td className="py-1 px-3 text-gray-700">{c.label}</td><td className="py-1 px-1 text-center text-gray-500">{c.quantity}</td><td className="py-1 px-2 text-right text-gray-500">S/ {Number(c.price).toFixed(2)}</td><td className="py-1 px-3 text-right font-medium text-gray-800">S/ {Number(c.subtotal).toFixed(2)}</td></tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          ) : (
+            <div className="py-3 text-center text-xs text-gray-400">Sin tratamientos registrados</div>
+          )}
+        </div>
+
+        {/* ═══ OBSERVACIONES ═══ */}
         {treatmentPlan?.observations && (
-          <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
-            <h5 className="font-semibold text-blue-900 mb-1 text-sm">Observaciones</h5>
-            <p className="text-sm text-blue-800">{treatmentPlan.observations}</p>
+          <div className="col-span-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+            <span className="font-semibold text-blue-800 text-[10px] uppercase tracking-wide">Observaciones</span>
+            <p className="text-sm text-blue-900 mt-0.5 leading-snug">{treatmentPlan.observations}</p>
           </div>
         )}
       </div>
