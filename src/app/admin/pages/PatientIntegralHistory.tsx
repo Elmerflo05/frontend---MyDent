@@ -49,7 +49,12 @@ import {
   Clock,
   X,
   ZoomIn,
+  ExternalLink,
+  FileImage,
 } from 'lucide-react';
+
+// URL base del backend para construir URLs de archivos S3
+const BACKEND_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4015';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -244,8 +249,11 @@ function sectionHasContent(sectionId: number, c: IntegralConsultation | null): b
       return !!(c.radiography_requests?.length);
     case 5:
       return !!(c.prescriptions?.length);
-    case 6:
-      return !!(c.exam_results?.doctor_observations || c.exam_results?.external_files?.length);
+    case 6: {
+      const hasExam = !!(c.exam_results?.doctor_observations || c.exam_results?.external_files?.length);
+      const hasRadResults = !!(c.radiography_requests?.some((r: any) => r.results?.length > 0));
+      return hasExam || hasRadResults;
+    }
     case 7:
       return !!(c.definitive_diagnosis?.length);
     case 8:
@@ -682,38 +690,8 @@ const PatientIntegralHistory = () => {
                 </div>
               )}
 
-              {/* Resultados subidos por tecnico */}
-              {req.results?.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-orange-200">
-                  <p className="text-xs font-semibold text-orange-700 uppercase tracking-wider mb-2">
-                    Resultados ({req.results.length})
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {req.results.map((result: any, j: number) => (
-                      <div key={j}>
-                        {result.file_url || result.file_path || result.external_url ? (
-                          <a
-                            href={result.file_url || result.file_path || result.external_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-100 text-orange-800 rounded-lg text-xs font-medium hover:bg-orange-200 transition-colors"
-                          >
-                            <FileText className="w-3 h-3" />
-                            {result.original_name || result.file_name || `Resultado ${j + 1}`}
-                          </a>
-                        ) : (
-                          <span className="text-xs text-gray-500 px-3 py-1.5 bg-gray-100 rounded-lg">
-                            {result.file_name || `Resultado ${j + 1}`}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Si no hay datos parseables, mostrar fallback */}
-              {!hasTomografiaSelection && !hasRadiografiasSelection && !req.results?.length && (
+              {!hasTomografiaSelection && !hasRadiografiasSelection && (
                 <p className="text-xs text-orange-600 italic">Solicitud registrada sin detalles adicionales</p>
               )}
             </motion.div>
@@ -780,33 +758,257 @@ const PatientIntegralHistory = () => {
 
   const renderResultadosAuxiliares = () => {
     const examResults = selectedConsultation?.exam_results;
-    if (!examResults) return <EmptySection text="Sin resultados auxiliares" />;
-    const hasObs = !!examResults.doctor_observations;
-    const hasFiles = examResults.external_files?.length > 0;
-    if (!hasObs && !hasFiles) return <EmptySection text="Sin resultados auxiliares" />;
+    const radiographyRequests = selectedConsultation?.radiography_requests || [];
+
+    // Resultados de radiografía subidos por el técnico de imágenes
+    const allRadResults = radiographyRequests.flatMap((r: any) => r.results || []);
+    const radImages = allRadResults.filter((r: any) => r.result_type === 'image');
+    const radDocuments = allRadResults.filter((r: any) => r.result_type === 'document');
+    const radLinks = allRadResults.filter((r: any) => r.result_type === 'external_link');
+
+    const hasRadResults = allRadResults.length > 0;
+    const hasObs = !!examResults?.doctor_observations;
+    const hasFiles = examResults?.external_files?.length > 0;
+
+    if (!hasRadResults && !hasObs && !hasFiles) {
+      return <EmptySection text="Sin resultados auxiliares" />;
+    }
+
+    // Construir URL completa para archivos en Wasabi S3 (via proxy backend)
+    const getFullUrl = (path: string | null): string => {
+      if (!path) return '';
+      if (path.startsWith('http://') || path.startsWith('https://')) return path;
+      const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+      return `${BACKEND_URL}/${cleanPath}`;
+    };
+
+    const formatFileSize = (bytes: number | null): string => {
+      if (!bytes) return '';
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    const isImageMime = (mime: string | null, name: string | null): boolean => {
+      if (mime?.startsWith('image/')) return true;
+      const exts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
+      return exts.some(ext => (name || '').toLowerCase().endsWith(ext));
+    };
+
     return (
-      <div className="space-y-4">
+      <div className="space-y-5">
+        {/* Resultados de Radiografía (subidos por técnico de imágenes) */}
+        {hasRadResults && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                <FileImage className="w-4 h-4 text-purple-600" />
+              </div>
+              <div>
+                <h5 className="font-semibold text-gray-900 text-sm">Resultados de Radiografia</h5>
+                <p className="text-xs text-gray-500">Subidos por el tecnico de imagenes</p>
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                {radImages.length > 0 && (
+                  <span className="text-xs font-medium px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
+                    {radImages.length} imagen{radImages.length !== 1 ? 'es' : ''}
+                  </span>
+                )}
+                {radDocuments.length > 0 && (
+                  <span className="text-xs font-medium px-2 py-1 bg-red-100 text-red-700 rounded-full">
+                    {radDocuments.length} documento{radDocuments.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+                {radLinks.length > 0 && (
+                  <span className="text-xs font-medium px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                    {radLinks.length} enlace{radLinks.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-purple-50 rounded-xl border border-purple-200 p-4 space-y-4">
+              {/* Imágenes - Preview clickeable que abre lightbox */}
+              {radImages.length > 0 && (
+                <div>
+                  <span className="text-xs uppercase tracking-wider text-purple-600 font-semibold block mb-2">
+                    Imagenes ({radImages.length})
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {radImages.map((img: any, idx: number) => {
+                      const fullUrl = getFullUrl(img.file_path);
+                      return (
+                        <motion.div
+                          key={img.result_id || idx}
+                          whileHover={{ scale: 1.02 }}
+                          className="cursor-pointer"
+                          onClick={() => setLightboxImage({ src: fullUrl, alt: img.original_name || `Radiografia ${idx + 1}` })}
+                        >
+                          <div className="relative group">
+                            <div className="aspect-square rounded-lg overflow-hidden border-2 border-purple-300 shadow-sm bg-white">
+                              <img
+                                src={fullUrl}
+                                alt={img.original_name || `Radiografia ${idx + 1}`}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  if (target.parentElement) {
+                                    target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-400 bg-gray-100"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
+                                  }
+                                }}
+                              />
+                            </div>
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all rounded-lg flex items-center justify-center">
+                              <ZoomIn className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1 truncate text-center" title={img.original_name || ''}>
+                            {img.original_name || `Imagen ${idx + 1}`}
+                          </p>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Documentos (PDF, etc.) - Ícono clickeable que abre en nueva pestaña */}
+              {radDocuments.length > 0 && (
+                <div>
+                  <span className="text-xs uppercase tracking-wider text-purple-600 font-semibold block mb-2">
+                    Documentos ({radDocuments.length})
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {radDocuments.map((doc: any, idx: number) => {
+                      const fullUrl = getFullUrl(doc.file_path);
+                      const isPdf = doc.mime_type === 'application/pdf' || (doc.original_name || '').toLowerCase().endsWith('.pdf');
+                      return (
+                        <a
+                          key={doc.result_id || idx}
+                          href={fullUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 p-3 bg-white rounded-lg border border-purple-200 hover:bg-purple-100 hover:border-purple-400 transition-colors group"
+                        >
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isPdf ? 'bg-red-100' : 'bg-blue-100'}`}>
+                            <FileText className={`w-5 h-5 ${isPdf ? 'text-red-600' : 'text-blue-600'}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-800 truncate">
+                              {doc.original_name || `Documento ${idx + 1}`}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {formatFileSize(doc.file_size)}
+                              {doc.uploader_name && ` · ${doc.uploader_name}`}
+                            </p>
+                          </div>
+                          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded font-medium group-hover:bg-purple-200">
+                            Abrir
+                          </span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Enlaces externos */}
+              {radLinks.length > 0 && (
+                <div>
+                  <span className="text-xs uppercase tracking-wider text-purple-600 font-semibold block mb-2">
+                    Enlaces externos ({radLinks.length})
+                  </span>
+                  <div className="grid grid-cols-1 gap-2">
+                    {radLinks.map((link: any, idx: number) => (
+                      <a
+                        key={link.result_id || idx}
+                        href={link.external_url || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-3 bg-white rounded-lg border border-blue-200 hover:bg-blue-50 hover:border-blue-400 transition-colors group"
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                          <ExternalLink className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">
+                            {link.external_url || 'Enlace externo'}
+                          </p>
+                          {link.uploader_name && (
+                            <p className="text-xs text-gray-500">Subido por {link.uploader_name}</p>
+                          )}
+                        </div>
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium group-hover:bg-blue-200">
+                          Visitar
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Observaciones del doctor */}
         {hasObs && (
           <div>
             <h5 className="text-xs font-semibold text-cyan-600 uppercase tracking-wider mb-1.5">Observaciones del doctor</h5>
-            <p className="text-sm text-gray-800 bg-cyan-50 p-4 rounded-xl border border-cyan-100">{examResults.doctor_observations}</p>
+            <p className="text-sm text-gray-800 bg-cyan-50 p-4 rounded-xl border border-cyan-100">{examResults!.doctor_observations}</p>
           </div>
         )}
+
+        {/* Archivos de centros externos (subidos por el doctor) */}
         {hasFiles && (
           <div>
-            <h5 className="text-xs font-semibold text-cyan-600 uppercase tracking-wider mb-2">Archivos externos</h5>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-full bg-cyan-100 flex items-center justify-center">
+                <ClipboardList className="w-4 h-4 text-cyan-600" />
+              </div>
+              <div>
+                <h5 className="font-semibold text-gray-900 text-sm">Archivos de Centros Externos</h5>
+                <p className="text-xs text-gray-500">Subidos por el doctor</p>
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {examResults.external_files.map((file: any, i: number) => (
-                <a key={i} href={file.url || file.file_url || '#'} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-3 p-3 bg-cyan-50 border border-cyan-100 rounded-xl hover:bg-cyan-100 hover:shadow-sm transition-all group">
-                  <div className="w-8 h-8 rounded-lg bg-cyan-100 group-hover:bg-cyan-200 flex items-center justify-center transition-colors">
-                    <ClipboardList className="w-4 h-4 text-cyan-600" />
-                  </div>
-                  <span className="text-sm text-cyan-700 font-medium group-hover:text-cyan-800 transition-colors">
-                    {file.name || file.file_name || `Archivo ${i + 1}`}
-                  </span>
-                </a>
-              ))}
+              {(examResults!.external_files || []).map((file: any, i: number) => {
+                const filePath = typeof file === 'string' ? file : (file.path || file.url || file.filename || '');
+                const fileName = (file && typeof file === 'object' && file.name) ? file.name : (filePath.split('/').pop() || `Archivo ${i + 1}`);
+                const fullUrl = getFullUrl(filePath);
+                const isImg = isImageMime(file?.type || null, fileName);
+
+                return isImg ? (
+                  <motion.div
+                    key={i}
+                    whileHover={{ scale: 1.02 }}
+                    className="cursor-pointer"
+                    onClick={() => setLightboxImage({ src: fullUrl, alt: fileName })}
+                  >
+                    <div className="relative group">
+                      <div className="aspect-video rounded-lg overflow-hidden border-2 border-cyan-200 shadow-sm bg-white">
+                        <img src={fullUrl} alt={fileName} className="w-full h-full object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      </div>
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all rounded-lg flex items-center justify-center">
+                        <ZoomIn className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1 truncate">{fileName}</p>
+                  </motion.div>
+                ) : (
+                  <a key={i} href={fullUrl} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 bg-cyan-50 border border-cyan-100 rounded-xl hover:bg-cyan-100 hover:shadow-sm transition-all group">
+                    <div className="w-10 h-10 rounded-lg bg-cyan-100 group-hover:bg-cyan-200 flex items-center justify-center transition-colors">
+                      <FileText className="w-5 h-5 text-cyan-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-cyan-700 font-medium truncate">{fileName}</p>
+                    </div>
+                    <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-1 rounded font-medium group-hover:bg-cyan-200">Abrir</span>
+                  </a>
+                );
+              })}
             </div>
           </div>
         )}
