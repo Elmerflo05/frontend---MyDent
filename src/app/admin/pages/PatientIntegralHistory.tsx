@@ -111,13 +111,16 @@ const convertDBConditionToOdontogramFormat = (dbCondition: any): any => {
     toothNumber = `${toothNumber[0]}.${toothNumber[1]}`;
   }
 
-  const state = dbCondition.color_type === 'blue' ? 'good' : 'bad';
+  // Priorizar condition_state (estado real del registro) sobre color_type (catálogo)
+  const state: 'good' | 'bad' = dbCondition.condition_state === 'good' ? 'good'
+    : dbCondition.condition_state === 'bad' ? 'bad'
+    : dbCondition.color_type === 'blue' ? 'good' : 'bad';
   const conditionId = dbCondition.dental_condition_code || dbCondition.condition_name || 'unknown';
 
   return {
     toothNumber, sectionId, conditionId, condition: conditionId,
     abbreviation: dbCondition.abbreviation, state,
-    color: dbCondition.color_type || 'gray',
+    color: state === 'bad' ? 'red' : (dbCondition.color_type || 'blue'),
     notes: dbCondition.notes || dbCondition.description,
     symbol_type: dbCondition.symbol_type,
     fill_surfaces: dbCondition.fill_surfaces,
