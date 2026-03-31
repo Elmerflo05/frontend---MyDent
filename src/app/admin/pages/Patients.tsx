@@ -513,6 +513,8 @@ const PatientsPage = () => {
             }}
           />
         )}
+
+        {/* Integral History Modal */}
       </motion.div>
     </div>
   );

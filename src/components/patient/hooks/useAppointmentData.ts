@@ -3,6 +3,8 @@ import type { User as UserType } from '@/types';
 import { dentistsApi, type DentistData } from '@/services/api/dentistsApi';
 import { pricingApi } from '@/services/api/pricingApi';
 import { appointmentsApi } from '@/services/api/appointmentsApi';
+import { consultationsApi } from '@/services/api/consultationsApi';
+import { patientsApi } from '@/services/api/patientsApi';
 
 /**
  * Hook para manejar la carga de datos iniciales de la cita
@@ -136,8 +138,11 @@ export const useAppointmentData = ({
   };
 
   /**
-   * Verifica si el paciente es cliente nuevo (sin citas completadas/atendidas)
-   * appointment_status_id: 3 = completada, 4 = atendida
+   * Verifica si el paciente es cliente nuevo.
+   * Es continuador si cumple AL MENOS UNO de estos criterios:
+   *   1. Tiene citas completadas/atendidas (appointment_status_id 3 o 4)
+   *   2. Tiene tratamiento registrado (atención integral): consulta con plan de tratamiento
+   *   3. Marcado manualmente como continuador por SA (is_new_client = false)
    */
   const checkIfNewClient = async () => {
     if (!user?.id) {
@@ -146,21 +151,33 @@ export const useAppointmentData = ({
     }
 
     try {
-      const patientId = parseInt(user.id, 10);
-      if (isNaN(patientId)) {
+      // user.id = user_id (tabla users), user.patient_id = patient_id real (tabla patients)
+      // appointments GET tiene doble lookup (user_id → patient_id), pero consultations y patients NO
+      const realPatientId = user.patient_id || parseInt(user.id, 10);
+      if (isNaN(realPatientId)) {
         setEsClienteNuevo(true);
         return;
       }
 
-      // Obtener citas del paciente
-      const appointments = await appointmentsApi.getPatientAppointments(patientId);
+      // Verificar los 3 criterios en paralelo usando el patient_id real
+      const [appointments, consultations, patientData] = await Promise.all([
+        appointmentsApi.getPatientAppointments(realPatientId),
+        consultationsApi.getPatientConsultations(realPatientId).catch(() => []),
+        patientsApi.getPatientById(realPatientId).catch(() => null)
+      ]);
 
-      // Cliente nuevo si NO tiene citas con estado completada (3) o atendida (4)
-      const completedAppointments = appointments.filter(
+      // Criterio 1: Citas completadas/atendidas
+      const hasCompletedAppointments = appointments.some(
         (apt) => apt.appointment_status_id === 3 || apt.appointment_status_id === 4
       );
 
-      const isNew = completedAppointments.length === 0;
+      // Criterio 2: Tiene consultas (atención integral con tratamiento registrado)
+      const hasTreatmentConsultations = consultations.length > 0;
+
+      // Criterio 3: Marcado manualmente como continuador por SA (is_new_client = false)
+      const manuallyMarkedContinuador = patientData?.data?.is_new_client === false;
+
+      const isNew = !hasCompletedAppointments && !hasTreatmentConsultations && !manuallyMarkedContinuador;
       setEsClienteNuevo(isNew);
 
     } catch (error) {

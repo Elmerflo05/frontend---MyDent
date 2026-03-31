@@ -360,30 +360,6 @@ const BudgetStepComponent = ({
 
       const savedBudget = budgetResponse?.data || null;
 
-      // Log para debugging del presupuesto consolidado
-      console.log('[BudgetStep] === DATOS CARGADOS PARA PRESUPUESTO ===');
-      console.log('[BudgetStep] consultationId:', consultationId);
-      console.log('[BudgetStep] savedBudget:', savedBudget);
-      console.log('[BudgetStep] treatmentPlanResponse:', treatmentPlanResponse);
-      console.log('[BudgetStep] definitiveDiagnosisResponse:', definitiveDiagnosisResponse);
-      console.log('[BudgetStep] definitiveDiagnosis conditions:', definitiveDiagnosisResponse?.data?.conditions?.length || 0);
-
-      // Log detallado de las condiciones si existen
-      if (definitiveDiagnosisResponse?.data?.conditions?.length > 0) {
-        console.log('[BudgetStep] Primera condición (ejemplo):', definitiveDiagnosisResponse.data.conditions[0]);
-        definitiveDiagnosisResponse.data.conditions.forEach((cond: any, idx: number) => {
-          console.log(`[BudgetStep] Condición ${idx + 1}:`, {
-            tooth: cond.tooth_number,
-            condition_label: cond.condition_label,
-            selected_procedure_id: cond.selected_procedure_id,
-            selected_procedure_name: cond.selected_procedure_name,
-            procedure_price: cond.procedure_price,
-            price: cond.price
-          });
-        });
-      }
-      console.log('[BudgetStep] Summary:', definitiveDiagnosisResponse?.data?.summary);
-
       // Inicializar estados locales con datos del backend
       if (savedBudget) {
         setLocalAdvance(savedBudget.advance_payment || 0);
@@ -579,28 +555,6 @@ const BudgetStepComponent = ({
   const radiografias = radiographyRequest?.request_data?.radiografias || currentRecord?.diagnosticPlan?.radiografias;
   const pricingBreakdown = radiographyRequest?.pricing_data?.breakdown || [];
 
-  // Log para debugging
-  console.log('[BudgetStep] Tratamientos:', {
-    desdeBD: bdTreatments.length,
-    bdConditionsCount,
-    desdeLocal: localTreatments.length,
-    localConditionsCount,
-    usados: treatments.length,
-    source: (localConditionsCount >= bdConditionsCount && localConditionsCount > 0) ? 'LOCAL (mas items)' : (bdTreatments.length > 0 ? 'BD' : 'LOCAL')
-  });
-  console.log('[BudgetStep] Servicios adicionales:', {
-    desdeBD: bdAdditionalServices.length,
-    desdeLocal: localAdditionalServices.length,
-    usados: additionalServices.length,
-    source: bdAdditionalServices.length > 0 ? 'BD' : 'LOCAL'
-  });
-  console.log('[BudgetStep] Exámenes:', {
-    tomografia3D: !!tomografia3D,
-    radiografias: !!radiografias,
-    pricingBreakdown: pricingBreakdown.length,
-    localDiagnosticPlan: !!currentRecord?.diagnosticPlan
-  });
-
   // Procesar examenes para visualizacion
   const tomografiaData = processTomografia(tomografia3D);
   const radiografiasData = processRadiografias(radiografias);
@@ -624,14 +578,6 @@ const BudgetStepComponent = ({
   const definitiveDiagnosisTotal = definitiveDiagnosisFromSummary > 0
     ? definitiveDiagnosisFromSummary
     : (Number(savedBudget?.definitive_diagnosis_total) || Number(treatmentPlan?.definitive_diagnosis_total) || localTotal);
-
-  console.log('[BudgetStep] Total diagnóstico definitivo:', {
-    fromSummary: definitiveDiagnosisFromSummary,
-    fromSavedBudget: savedBudget?.definitive_diagnosis_total,
-    fromTreatmentPlan: treatmentPlan?.definitive_diagnosis_total,
-    fromLocal: localTotal,
-    final: definitiveDiagnosisTotal
-  });
 
   // Calcular total de tratamientos desde los datos que estamos usando
   const calculatedTreatmentsTotal = treatments.reduce((sum: number, t: TreatmentItem) => {
@@ -662,16 +608,6 @@ const BudgetStepComponent = ({
     radiographyRequest?.pricing_data?.suggestedPrice ||
     pricingBreakdown.reduce((sum: number, item: any) => sum + (item.price || 0), 0) ||
     localExamsTotal;
-
-  console.log('[BudgetStep] Totales calculados:', {
-    treatmentsTotal,
-    calculatedTreatmentsTotal,
-    usingLocalTreatments,
-    additionalServicesTotal,
-    localAdditionalServicesTotal,
-    examsTotal,
-    localExamsTotal
-  });
 
   // Subtotal antes del descuento
   const subtotal = definitiveDiagnosisTotal + treatmentsTotal + additionalServicesTotal + examsTotal;
@@ -729,14 +665,6 @@ const BudgetStepComponent = ({
 
   // Usar datos de BD si existen, sino usar datos locales mapeados
   const definitiveDiagnosisConditions = bdConditions.length > 0 ? bdConditions : mappedLocalConditions;
-
-  // Log para debugging
-  console.log('[BudgetStep] Usando condiciones:', {
-    desdeBD: bdConditions.length,
-    desdeLocal: localConditions.length,
-    total: definitiveDiagnosisConditions.length,
-    source: bdConditions.length > 0 ? 'BD' : 'LOCAL'
-  });
 
   // Renderizar estado de carga
   if (budgetData.loading) {
@@ -849,18 +777,6 @@ const BudgetStepComponent = ({
                     || (procedures.length > 0 ? procedures[0].procedure_name : null)
                     || conditionName
                     || 'Procedimiento';
-
-                  // Log para debugging (remover en producción)
-                  console.log('[BudgetStep] Condition:', {
-                    tooth: toothNumber,
-                    conditionName,
-                    selected_procedure_name: condition.selected_procedure_name,
-                    selected_procedure_id: condition.selected_procedure_id,
-                    procedure_price: condition.procedure_price,
-                    price: condition.price,
-                    finalPrice: price,
-                    mainProcedure
-                  });
 
                   return (
                     <div key={condition.definitive_condition_id || index} className="px-3 py-2 hover:bg-blue-50/50 flex items-center justify-between gap-2">

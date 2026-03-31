@@ -97,7 +97,7 @@ export const PatientDetailsModal = ({
   userRole,
   onClose,
   onUploadContract,
-  onViewPaymentHistory
+  onViewPaymentHistory,
 }: PatientDetailsModalProps) => {
   const navigate = useNavigate();
   const [isExporting, setIsExporting] = useState(false);
@@ -139,6 +139,19 @@ export const PatientDetailsModal = ({
       <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
         <h3 className="text-xl font-bold text-gray-900">Detalles del Paciente</h3>
         <div className="flex items-center gap-3 mr-8">
+          {userRole === 'super_admin' && (
+            <button
+              onClick={() => {
+                navigate(`/admin/patients/${patient.id}/integral-history`);
+                onClose();
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              title="Ver Historial de Atención Integral Completo"
+            >
+              <Activity className="w-4 h-4" />
+              Historial Integral
+            </button>
+          )}
           <button
             onClick={handleExportPDF}
             disabled={isExporting}

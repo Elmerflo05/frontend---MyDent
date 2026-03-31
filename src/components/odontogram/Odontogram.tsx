@@ -831,8 +831,8 @@ const Odontogram = ({
         ))}
       </div>
 
-      {/* Controles - Ocultos en fullscreen */}
-      {!isFullscreen && (
+      {/* Controles - Ocultos en fullscreen y en readOnly */}
+      {!isFullscreen && !readOnly && (
       <div className="mt-2 sm:mt-3 lg:mt-4 xl:mt-6 flex items-center justify-end">
         <div className="flex gap-2 sm:gap-2.5 lg:gap-3">
           <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleReset} className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 px-2 sm:px-2.5 lg:px-3 xl:px-4 py-1.5 sm:py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-xs sm:text-sm">

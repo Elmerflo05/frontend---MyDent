@@ -451,6 +451,16 @@ export const useToothConditions = (
           });
         }
 
+        // Si la BD trae symbol_type, prevalece sobre el catálogo
+        // Esto es necesario porque el catálogo puede tener valores genéricos
+        // mientras la BD tiene el symbol_type específico de la configuración
+        if (condition && tc.symbol_type && tc.symbol_type !== condition.symbolType) {
+          condition = {
+            ...condition,
+            symbolType: tc.symbol_type
+          };
+        }
+
         const result = {
           condition,
           toothNumber: tc.toothNumber,

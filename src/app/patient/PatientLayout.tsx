@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -24,6 +24,7 @@ import {
   Shield,
   CalendarX
 } from 'lucide-react';
+import { io, Socket } from 'socket.io-client';
 import { routeConfig } from '@/router';
 import { useAuthStore } from '@/store/authStore';
 import { useAppSettingsStore } from '@/store/appSettingsStore';
@@ -34,11 +35,13 @@ import { notificationsApi } from '@/services/api/notificationsApi';
 import { incomePaymentsApi } from '@/services/api/incomePaymentsApi';
 import { appointmentsApi } from '@/services/api/appointmentsApi';
 import AppointmentNotificationModal, { AppointmentNotification } from '@/components/patient/AppointmentNotificationModal';
+import BudgetNotificationModal, { BudgetNotification } from '@/components/patient/BudgetNotificationModal';
 import PaymentPendingModal from '@/components/patient/PaymentPendingModal';
 import { formatDateToYMD } from '@/utils/dateUtils';
 import { SessionTimeoutProvider } from '@/components/common/SessionTimeoutProvider';
 
 // Estados de cita activos para mostrar en el widget
+const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4015';
 const ACTIVE_APPOINTMENT_STATES = [0, 1, 2, 3, 7];
 
 interface NextAppointmentInfo {
@@ -52,10 +55,13 @@ const PatientLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [patientData, setPatientData] = useState<Patient | null>(null);
   const [appointmentNotifications, setAppointmentNotifications] = useState<AppointmentNotification[]>([]);
+  const [budgetNotifications, setBudgetNotifications] = useState<BudgetNotification[]>([]);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [hasPendingDebts, setHasPendingDebts] = useState(false);
   const [nextAppointment, setNextAppointment] = useState<NextAppointmentInfo | null>(null);
+  const socketRef = useRef<Socket | null>(null);
   const { user, logout } = useAuthStore();
   const { loadSettings } = useAppSettingsStore();
   const navigate = useNavigate();
@@ -66,10 +72,44 @@ const PatientLayout = () => {
     loadSettings();
   }, [user]);
 
-  // Cargar notificaciones de citas al iniciar
+  // Socket.IO: escuchar notificaciones en tiempo real
+  useEffect(() => {
+    const patientId = user?.profile?.patientId;
+    if (!patientId) return;
+
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      socket.emit('join-patient', patientId);
+    });
+
+    socket.on('budget-notification', (data: any) => {
+      const notification: BudgetNotification = {
+        notification_id: data.notification_id,
+        notification_type: data.notification_type,
+        notification_title: data.notification_title,
+        notification_message: data.notification_message,
+        notification_data: data.notification_data,
+        date_time_registration: data.date_time_registration
+      };
+      setBudgetNotifications(prev => {
+        const exists = prev.some(n => n.notification_id === notification.notification_id);
+        return exists ? prev : [...prev, notification];
+      });
+      setShowBudgetModal(true);
+    });
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [user?.profile?.patientId]);
+
+  // Cargar todas las notificaciones al iniciar (1 sola query)
   useEffect(() => {
     if (user?.id) {
-      loadAppointmentNotifications();
+      loadAllNotifications();
     }
   }, [user?.id]);
 
@@ -98,23 +138,27 @@ const PatientLayout = () => {
     }
   };
 
-  const loadAppointmentNotifications = async () => {
+  const loadAllNotifications = async () => {
     try {
-      const response = await notificationsApi.getNotifications({
+      const response = await notificationsApi.getPatientNotifications({
         is_read: false,
-        limit: 10
+        limit: 20
       });
 
       if (response.success && response.data) {
-        // Filtrar solo notificaciones de citas (aprobación, reprogramación, cancelación)
         const appointmentTypes = ['appointment_confirmed', 'appointment_rescheduled', 'appointment_cancelled', 'appointment_rejected'];
-        const filtered = response.data.filter((n: any) =>
-          appointmentTypes.includes(n.notification_type)
-        );
+        const budgetTypes = ['budget_created', 'budget_updated'];
 
-        if (filtered.length > 0) {
-          setAppointmentNotifications(filtered);
+        const appointmentFiltered = response.data.filter((n: any) => appointmentTypes.includes(n.notification_type));
+        const budgetFiltered = response.data.filter((n: any) => budgetTypes.includes(n.notification_type));
+
+        if (appointmentFiltered.length > 0) {
+          setAppointmentNotifications(appointmentFiltered);
           setShowNotificationModal(true);
+        }
+        if (budgetFiltered.length > 0) {
+          setBudgetNotifications(budgetFiltered);
+          setShowBudgetModal(true);
         }
       }
     } catch (error) {
@@ -124,7 +168,7 @@ const PatientLayout = () => {
 
   const handleMarkNotificationAsRead = async (notificationId: number) => {
     try {
-      await notificationsApi.markAsRead(notificationId);
+      await notificationsApi.markPatientNotificationAsRead(notificationId);
     } catch (error) {
       console.error('Error al marcar notificación como leída:', error);
     }
@@ -461,6 +505,14 @@ const PatientLayout = () => {
         isOpen={showNotificationModal}
         onClose={handleCloseNotificationModal}
         notifications={appointmentNotifications}
+        onMarkAsRead={handleMarkNotificationAsRead}
+      />
+
+      {/* Modal de notificaciones de presupuesto */}
+      <BudgetNotificationModal
+        isOpen={showBudgetModal}
+        onClose={() => { setShowBudgetModal(false); setBudgetNotifications([]); }}
+        notifications={budgetNotifications}
         onMarkAsRead={handleMarkNotificationAsRead}
       />
 

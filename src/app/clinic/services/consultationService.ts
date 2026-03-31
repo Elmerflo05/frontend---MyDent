@@ -441,7 +441,6 @@ export const saveConsultationProgress = async (params: SaveProgressParams): Prom
     if (currentRecord.appointmentId) {
       try {
         await appointmentsApi.markAppointmentAsCompleted(currentRecord.appointmentId);
-        console.log('✅ Cita marcada como completada:', currentRecord.appointmentId);
       } catch (appointmentError) {
         console.warn('No se pudo marcar la cita como completada:', appointmentError);
         // No bloquear el flujo - la consulta ya se guardó

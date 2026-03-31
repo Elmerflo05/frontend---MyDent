@@ -482,6 +482,39 @@ export const PatientApiService = {
       console.error('[PatientApiService.loadPatientIntegralData] Error:', error);
       throw error;
     }
+  },
+
+  /**
+   * SA Only: Carga historial integral COMPLETO de un paciente
+   * Incluye los 10 pasos de la consulta integral
+   */
+  async loadPatientFullIntegralHistory(patientId: string): Promise<PatientFullIntegralHistory> {
+    const response = await httpClient.get<{ success: boolean; data: PatientFullIntegralHistory }>(
+      `/patients/${patientId}/integral-history`
+    );
+    if (!response.success || !response.data) {
+      throw new Error('Error al cargar historial integral');
+    }
+    return response.data;
+  },
+
+  /**
+   * SA Only: Carga historial de modificaciones de un paciente desde audit_logs
+   */
+  async loadPatientModificationHistory(patientId: string): Promise<{
+    logs: PatientAuditLog[];
+    total: number;
+  }> {
+    const response = await httpClient.get<{
+      success: boolean;
+      data: PatientAuditLog[];
+      pagination: { total: number };
+    }>(`/audit-logs?table_name=patients&record_id=${patientId}&limit=100`);
+
+    return {
+      logs: response.data || [],
+      total: response.pagination?.total || 0
+    };
   }
 };
 
@@ -599,4 +632,73 @@ export interface PatientIntegralData {
     sub_procedures: number;
     additional_services: number;
   };
+}
+
+/** Historial integral completo - respuesta del endpoint SA */
+export interface PatientFullIntegralHistory {
+  patient: {
+    patient_id: number;
+    first_name: string;
+    last_name: string;
+    identification_number: string;
+  };
+  consultations: IntegralConsultation[];
+  summary: {
+    total_consultations: number;
+    last_consultation_date: string | null;
+    completed_procedures: number;
+    total_prescriptions: number;
+  } | null;
+  medical_background: any;
+  laboratory_radiography_requests: any[];
+}
+
+/** Consulta integral completa (estructura del portal del paciente) */
+export interface IntegralConsultation {
+  consultation_id: number;
+  patient_id: number;
+  dentist_id: number;
+  consultation_date: string;
+  consultation_time: string;
+  chief_complaint: string | null;
+  present_illness: string | null;
+  vital_signs: any;
+  general_condition: string | null;
+  extraoral_exam: string | null;
+  extraoral_exam_images: string[];
+  intraoral_exam: string | null;
+  intraoral_exam_images: string[];
+  diagnosis: string | null;
+  treatment_performed: string | null;
+  notes: string | null;
+  recommendations: string | null;
+  dentist_name: string;
+  branch_name: string;
+  odontogram: any;
+  evolution_odontogram: any[];
+  definitive_diagnosis: any[];
+  treatment_plan: any;
+  radiography_requests: any[];
+  exam_results: any;
+  procedure_history: any[];
+  completed_items: any[];
+  prescriptions: any[];
+  budget: any;
+}
+
+/** Log de auditoría de modificaciones */
+export interface PatientAuditLog {
+  audit_log_id: number;
+  table_name: string;
+  record_id: number;
+  action: string;
+  old_values: Record<string, any> | null;
+  new_values: Record<string, any> | null;
+  changed_fields: Record<string, { old: any; new: any }> | null;
+  user_id: number | null;
+  user_name: string | null;
+  user_email: string | null;
+  branch_id: number | null;
+  ip_address: string | null;
+  timestamp: string;
 }

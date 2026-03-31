@@ -21,6 +21,7 @@ import CalendarioCitas from '@/components/patient/CalendarioCitas';
 import RequestAppointmentModal from '@/components/patient/RequestAppointmentModal';
 import { appointmentsApi } from '@/services/api/appointmentsApi';
 import { useAuthStore } from '@/store/authStore';
+import { useAppSettingsStore } from '@/store/appSettingsStore';
 import { useAppointmentSocket } from '@/hooks/useAppointmentSocket';
 
 interface Appointment {
@@ -42,6 +43,7 @@ type Vista = 'lista' | 'calendario';
 
 const PatientAppointments = () => {
   const { user } = useAuthStore();
+  const { settings } = useAppSettingsStore();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -405,14 +407,26 @@ const PatientAppointments = () => {
           </div>
 
           <div className="flex items-center gap-6 text-sm">
-            <div className="flex items-center gap-2 text-teal-700">
-              <Phone className="w-4 h-4" />
-              <span>(01) 234-5678</span>
-            </div>
-            <div className="flex items-center gap-2 text-teal-700">
-              <Mail className="w-4 h-4" />
-              <span>citas@clinica.com</span>
-            </div>
+            {settings?.whatsappNumber && (
+              <a
+                href={`https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-teal-700 hover:text-teal-900 transition-colors"
+              >
+                <Phone className="w-4 h-4" />
+                <span>{settings.whatsappNumber}</span>
+              </a>
+            )}
+            {settings?.emailSupport && (
+              <a
+                href={`mailto:${settings.emailSupport}`}
+                className="flex items-center gap-2 text-teal-700 hover:text-teal-900 transition-colors"
+              >
+                <Mail className="w-4 h-4" />
+                <span>{settings.emailSupport}</span>
+              </a>
+            )}
           </div>
         </div>
 

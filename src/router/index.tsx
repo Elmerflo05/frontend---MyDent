@@ -76,6 +76,7 @@ const VoucherApproval = lazyWithRetry(() => import('@/app/admin/pages/VoucherApp
 const TreatmentAudit = lazyWithRetry(() => import('@/app/admin/pages/TreatmentAudit'));
 const SubProceduresManagement = lazyWithRetry(() => import('@/app/admin/pages/SubProceduresManagement'));
 const BranchPaymentMethodsConfig = lazyWithRetry(() => import('@/app/admin/pages/BranchPaymentMethodsConfig'));
+const PatientIntegralHistory = lazyWithRetry(() => import('@/app/admin/pages/PatientIntegralHistory'));
 
 // Laboratory Submissions (Solicitudes Externas - para external_client y staff)
 const LaboratorySubmissions = lazyWithRetry(() => import('@/app/laboratory/pages/Submissions'));
@@ -494,6 +495,16 @@ export const router = createBrowserRouter([
           <LazyWrapper>
             <CreatePatient />
           </LazyWrapper>
+        )
+      },
+      {
+        path: 'patients/:patientId/integral-history',
+        element: (
+          <ProtectedRoute requiredRoles={['super_admin']}>
+            <LazyWrapper>
+              <PatientIntegralHistory />
+            </LazyWrapper>
+          </ProtectedRoute>
         )
       },
       {
