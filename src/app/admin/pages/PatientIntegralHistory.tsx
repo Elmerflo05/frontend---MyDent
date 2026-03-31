@@ -21,6 +21,14 @@ import type {
 import { PatientModificationHistory } from '../components/patients/PatientModificationHistory';
 import Odontogram from '@/components/odontogram/Odontogram';
 import {
+  Tomografia3DSection,
+  RadiografiasSection,
+  INITIAL_TOMOGRAFIA_FORM,
+  INITIAL_RADIOGRAFIAS_FORM,
+  type Tomografia3DFormData,
+  type RadiografiasFormData
+} from '@/components/laboratory-form';
+import {
   Stethoscope,
   Activity,
   FileText,
@@ -576,45 +584,141 @@ const PatientIntegralHistory = () => {
   const renderPlanDiagnostico = () => {
     const requests = selectedConsultation?.radiography_requests;
     if (!requests?.length) return <EmptySection text="Sin solicitudes de radiografia" />;
+
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {requests.map((req: any, i: number) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.04 }}
-            className="bg-orange-50 border border-orange-200 rounded-xl p-4 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center">
-                  <TestTube className="w-3.5 h-3.5 text-orange-600" />
-                </div>
-                <span className="text-sm font-semibold text-gray-800">{req.radiography_type || 'Radiografia'}</span>
-              </div>
-              {req.request_status && <StatusBadge status={req.request_status} />}
-            </div>
-            <p className="text-xs text-orange-700">Fecha: {formatTimestampToLima(req.request_date, 'date')}</p>
-            {req.results?.length > 0 && (
-              <div className="mt-3 pt-2 border-t border-orange-200 flex flex-wrap gap-2">
-                {req.results.map((result: any, j: number) => (
-                  <div key={j}>
-                    {result.file_url || result.url ? (
-                      <a href={result.file_url || result.url} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-100 text-orange-800 rounded-lg text-xs font-medium hover:bg-orange-200 transition-colors">
-                        <FileText className="w-3 h-3" />
-                        {result.file_name || `Resultado ${j + 1}`}
-                      </a>
-                    ) : (
-                      <span className="text-xs text-gray-500">{result.description || `Resultado ${j + 1}`}</span>
-                    )}
+      <div className="space-y-4">
+        {requests.map((req: any, i: number) => {
+          // Parsear request_data (JSONB) que contiene la seleccion detallada del doctor
+          const requestData = req.request_data || {};
+          const tomografia3D: Tomografia3DFormData = {
+            ...INITIAL_TOMOGRAFIA_FORM,
+            ...requestData.tomografia3D
+          };
+          const radiografias: RadiografiasFormData = {
+            ...INITIAL_RADIOGRAFIAS_FORM,
+            ...requestData.radiografias
+          };
+
+          // Verificar si hay selecciones reales
+          const hasTomografiaSelection = Object.values(tomografia3D).some(
+            v => v === true || (typeof v === 'string' && v.trim())
+          );
+          const hasRadiografiasSelection = Object.values(radiografias).some(
+            v => v === true || (Array.isArray(v) && v.length > 0) || (typeof v === 'string' && v.trim())
+          );
+
+          // Label legible para el tipo
+          const typeLabel = req.radiography_type === 'diagnostic_plan'
+            ? (hasTomografiaSelection && hasRadiografiasSelection ? 'Tomografia 3D + Radiografias'
+               : hasTomografiaSelection ? 'Tomografia 3D'
+               : hasRadiografiasSelection ? 'Radiografias'
+               : 'Plan Diagnostico')
+            : (req.radiography_type || 'Plan Diagnostico');
+
+          // Status badge
+          const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
+            pending: { label: 'Pendiente', bg: 'bg-yellow-100', text: 'text-yellow-800' },
+            in_progress: { label: 'En proceso', bg: 'bg-blue-100', text: 'text-blue-800' },
+            completed: { label: 'Completado', bg: 'bg-green-100', text: 'text-green-800' },
+            delivered: { label: 'Entregado', bg: 'bg-emerald-100', text: 'text-emerald-800' },
+            cancelled: { label: 'Cancelado', bg: 'bg-red-100', text: 'text-red-800' },
+          };
+          const sts = statusConfig[req.request_status] || statusConfig.pending;
+
+          return (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04 }}
+              className="bg-orange-50 border border-orange-200 rounded-xl p-5 hover:shadow-md transition-shadow"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                    <TestTube className="w-4 h-4 text-orange-600" />
                   </div>
-                ))}
+                  <div>
+                    <span className="text-sm font-semibold text-gray-800">{typeLabel}</span>
+                    <p className="text-xs text-orange-600">
+                      Fecha: {formatTimestampToLima(req.request_date, 'date')}
+                    </p>
+                  </div>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${sts.bg} ${sts.text}`}>
+                  {sts.label}
+                </span>
               </div>
-            )}
-          </motion.div>
-        ))}
+
+              {/* Indicacion clinica */}
+              {req.clinical_indication && (
+                <p className="text-sm text-gray-700 mb-3 bg-white/60 rounded-lg p-2.5 border border-orange-100">
+                  {req.clinical_indication}
+                </p>
+              )}
+
+              {/* Tomografia 3D - componente visual reutilizado del portal */}
+              {hasTomografiaSelection && (
+                <div className="mb-3">
+                  <Tomografia3DSection
+                    mode="view"
+                    colorTheme="cyan"
+                    showPrices={false}
+                    formData={tomografia3D}
+                  />
+                </div>
+              )}
+
+              {/* Radiografias - componente visual reutilizado del portal */}
+              {hasRadiografiasSelection && (
+                <div className="mb-3">
+                  <RadiografiasSection
+                    mode="view"
+                    colorTheme="cyan"
+                    showPrices={false}
+                    formData={radiografias}
+                  />
+                </div>
+              )}
+
+              {/* Resultados subidos por tecnico */}
+              {req.results?.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-orange-200">
+                  <p className="text-xs font-semibold text-orange-700 uppercase tracking-wider mb-2">
+                    Resultados ({req.results.length})
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {req.results.map((result: any, j: number) => (
+                      <div key={j}>
+                        {result.file_url || result.file_path || result.external_url ? (
+                          <a
+                            href={result.file_url || result.file_path || result.external_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-100 text-orange-800 rounded-lg text-xs font-medium hover:bg-orange-200 transition-colors"
+                          >
+                            <FileText className="w-3 h-3" />
+                            {result.original_name || result.file_name || `Resultado ${j + 1}`}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-gray-500 px-3 py-1.5 bg-gray-100 rounded-lg">
+                            {result.file_name || `Resultado ${j + 1}`}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Si no hay datos parseables, mostrar fallback */}
+              {!hasTomografiaSelection && !hasRadiografiasSelection && !req.results?.length && (
+                <p className="text-xs text-orange-600 italic">Solicitud registrada sin detalles adicionales</p>
+              )}
+            </motion.div>
+          );
+        })}
       </div>
     );
   };
