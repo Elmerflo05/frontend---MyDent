@@ -747,19 +747,31 @@ const Odontogram = ({
       )}
 
       {/* Odontograma SVG - Ocupa todo el espacio en fullscreen */}
-      <div className={`relative bg-gradient-to-br from-gray-50 to-gray-100 overflow-auto flex justify-center items-center ${
+      <div className={`relative bg-gradient-to-br from-gray-50 to-gray-100 flex justify-center items-center ${
         isFullscreen
-          ? 'flex-1 p-4 rounded-none'
-          : 'p-1 sm:p-4 md:p-6 rounded-xl'
+          ? 'flex-1 p-4 rounded-none overflow-auto'
+          : 'p-1 sm:p-4 md:p-6 rounded-xl overflow-x-auto overflow-y-hidden'
       }`}>
         <div
-          className="odontogram-svg-container transition-transform duration-200 ease-out w-full min-w-[800px] md:min-w-[1200px] lg:min-w-[1400px] max-w-[1800px]"
+          className="odontogram-svg-container transition-transform duration-200 ease-out mx-auto flex items-center justify-center"
           style={{
             transform: `scale(${zoomLevel})`,
-            transformOrigin: 'center center'
+            transformOrigin: 'center center',
+            width: '100%',
+            maxWidth: '1800px'
           }}
         >
-          <svg viewBox={`${ODONTOGRAM_VIEWBOX.x} ${ODONTOGRAM_VIEWBOX.y} ${ODONTOGRAM_VIEWBOX.width} ${ODONTOGRAM_VIEWBOX.height}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
+          <svg
+            viewBox={`${ODONTOGRAM_VIEWBOX.x} ${ODONTOGRAM_VIEWBOX.y} ${ODONTOGRAM_VIEWBOX.width} ${ODONTOGRAM_VIEWBOX.height}`}
+            className="block mx-auto"
+            preserveAspectRatio="xMidYMid meet"
+            style={{
+              width: 'auto',
+              height: isFullscreen ? 'calc(100vh - 120px)' : 'min(156vh, 1460px)',
+              maxWidth: '100%',
+              maxHeight: isFullscreen ? 'calc(100vh - 120px)' : 'min(156vh, 1460px)'
+            }}
+          >
           {/* ==================== SUPERIORES ==================== */}
 
           {/* Render cuadrantes superiores (adultos + niños) */}
@@ -782,10 +794,10 @@ const Odontogram = ({
           ))}
 
           {/* Línea vertical */}
-          <line x1="980" y1="-21" x2="980" y2="1120" stroke="#cbd5e1" strokeWidth="2" strokeDasharray="5,5" />
+          <line x1="695" y1="-21" x2="695" y2="1120" stroke="#cbd5e1" strokeWidth="2" strokeDasharray="5,5" />
 
           {/* Línea horizontal */}
-          <line x1="70" y1="483" x2="1890" y2="483" stroke="#cbd5e1" strokeWidth="2" strokeDasharray="5,5" />
+          <line x1="70" y1="483" x2="1320" y2="483" stroke="#cbd5e1" strokeWidth="2" strokeDasharray="5,5" />
 
           {/* ==================== INFERIORES ==================== */}
 

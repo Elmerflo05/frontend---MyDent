@@ -46,12 +46,12 @@ export const QUADRANT_CONFIGS: QuadrantConfig[] = [
     isUpper: true,
     isAdult: true,
     positions: {
-      xStart: 1040,
+      xStart: 730,
       yTooth: 49,
       yAnnotation: -133,
       yLabel: -73
     },
-    getX: (tooth, idx) => 1040 + idx * TOOTH_SPACING
+    getX: (tooth, idx) => 730 + idx * TOOTH_SPACING
   },
   // ADULTOS INFERIORES
   {
@@ -60,12 +60,12 @@ export const QUADRANT_CONFIGS: QuadrantConfig[] = [
     isUpper: false,
     isAdult: true,
     positions: {
-      xStart: 1040,
+      xStart: 730,
       yTooth: 850,
       yAnnotation: 1053,
       yLabel: 1113
     },
-    getX: (tooth, idx) => 1040 + idx * TOOTH_SPACING
+    getX: (tooth, idx) => 730 + idx * TOOTH_SPACING
   },
   {
     key: 'q4',

@@ -19,7 +19,8 @@ import {
   X,
   ZoomIn,
   FileImage,
-  ExternalLink
+  ExternalLink,
+  Eye
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -83,6 +84,10 @@ const PatientMedicalHistory = () => {
   });
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [presupuestoExpanded, setPresupuestoExpanded] = useState<{ dx: boolean; tx: boolean; svc: boolean }>({
+    dx: false, tx: false, svc: false
+  });
+  const [examModalOpen, setExamModalOpen] = useState(false);
 
   useEffect(() => {
     loadMedicalHistory();
@@ -1883,44 +1888,233 @@ const PatientMedicalHistory = () => {
       );
     };
 
+    const dx: any[] = (selectedConsultation as any)?.definitive_diagnosis || [];
+    const tpItems: any[] = (selectedConsultation as any)?.treatment_plan?.items || [];
+    const tpServices: any[] = (selectedConsultation as any)?.treatment_plan?.additional_services || [];
+    const svcLabels: Record<string, string> = { orthodontic: 'Ortodoncia', implant: 'Implante', prosthesis: 'Protesis' };
+
+    const showDxRow = budget.definitive_diagnosis_total != null;
+    const showTxRow = budget.treatments_total != null;
+    const showSvcRow = budget.additional_services_total != null;
+    const showExamRow = budget.exams_total != null;
+
+    const expandableCount = [showDxRow, showTxRow, showSvcRow].filter(Boolean).length;
+    const openCount =
+      (presupuestoExpanded.dx && showDxRow ? 1 : 0) +
+      (presupuestoExpanded.tx && showTxRow ? 1 : 0) +
+      (presupuestoExpanded.svc && showSvcRow ? 1 : 0);
+    const allExpanded = expandableCount > 0 && openCount === expandableCount;
+
+    const toggleAll = () => {
+      const next = !allExpanded;
+      setPresupuestoExpanded({ dx: next, tx: next, svc: next });
+    };
+    const toggleRow = (key: 'dx' | 'tx' | 'svc') =>
+      setPresupuestoExpanded(prev => ({ ...prev, [key]: !prev[key] }));
+
+    const fmt = (v: any) => `S/ ${Number(v || 0).toFixed(2)}`;
+
+    const renderCategoryRow = (
+      keyId: 'dx' | 'tx' | 'svc',
+      label: string,
+      total: any,
+      items: any[],
+      detail: React.ReactNode
+    ) => {
+      const open = presupuestoExpanded[keyId];
+      return (
+        <div className="border-b border-amber-200">
+          <button
+            onClick={() => toggleRow(keyId)}
+            className="w-full flex items-center justify-between py-3 px-1 text-left hover:bg-amber-50/50 transition-colors rounded"
+          >
+            <div className="flex items-center gap-2">
+              <ChevronRight
+                className={`w-4 h-4 text-amber-700 transition-transform ${open ? 'rotate-90' : ''}`}
+              />
+              <span className="text-sm font-medium text-gray-700">{label}</span>
+            </div>
+            <span className="text-sm font-semibold text-gray-800">{fmt(total)}</span>
+          </button>
+          <AnimatePresence initial={false}>
+            {open && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="pb-4 pt-1 px-1">
+                  {items.length === 0 ? (
+                    <p className="text-xs text-amber-700/70 italic">Sin detalle disponible para este grupo</p>
+                  ) : (
+                    detail
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      );
+    };
+
+    const dxDetail = (
+      <div className="overflow-x-auto rounded-lg border border-amber-100 bg-white">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-amber-50/70 text-amber-700">
+              <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider">Pieza</th>
+              <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider">Condicion</th>
+              <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider">CIE-10</th>
+              <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider">Sup.</th>
+              <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider">Procedimiento</th>
+              <th className="px-3 py-2 text-right font-semibold uppercase tracking-wider">Precio</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-amber-50">
+            {dx.map((d: any, i: number) => (
+              <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-amber-50/20'}>
+                <td className="px-3 py-2 font-mono text-gray-800">{d.tooth_number ?? '-'}</td>
+                <td className="px-3 py-2 text-gray-800">{d.condition_label || d.condition_name || '-'}</td>
+                <td className="px-3 py-2 font-mono text-purple-600 font-semibold">{d.cie10_code || '-'}</td>
+                <td className="px-3 py-2 text-gray-600">{Array.isArray(d.surfaces) && d.surfaces.length > 0 ? d.surfaces.join(',') : (d.surfaces || '-')}</td>
+                <td className="px-3 py-2 text-gray-600">{d.selected_procedure_name || '-'}</td>
+                <td className="px-3 py-2 text-right text-gray-800 font-medium">{d.price != null ? fmt(d.price) : '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+
+    const txDetail = (
+      <div className="space-y-2">
+        {tpItems.map((item: any, i: number) => {
+          const hasConditions = Array.isArray(item.conditions) && item.conditions.length > 0;
+          return (
+            <div key={i} className="bg-white border border-emerald-100 rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2 bg-emerald-50/60">
+                <span className="font-medium text-emerald-800 text-sm">{item.treatment_name || item.procedure_name || `Item ${i + 1}`}</span>
+                {item.total_amount != null && (
+                  <span className="font-semibold text-emerald-700 text-sm">{fmt(item.total_amount)}</span>
+                )}
+              </div>
+              {hasConditions && (
+                <table className="w-full text-[11px]">
+                  <thead>
+                    <tr className="text-[10px] text-gray-500 uppercase bg-gray-50/50">
+                      <th className="text-left py-1 px-3 font-medium">Descripcion</th>
+                      <th className="text-center py-1 px-1 font-medium w-10">Ud</th>
+                      <th className="text-right py-1 px-2 font-medium w-20">P.U.</th>
+                      <th className="text-right py-1 px-3 font-medium w-20">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {item.conditions.map((c: any, ci: number) => (
+                      <tr key={ci}>
+                        <td className="py-1 px-3 text-gray-700">{c.label}</td>
+                        <td className="py-1 px-1 text-center text-gray-500">{c.quantity}</td>
+                        <td className="py-1 px-2 text-right text-gray-500">{fmt(c.price)}</td>
+                        <td className="py-1 px-3 text-right font-medium text-gray-800">{fmt(c.subtotal)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+
+    const svcDetail = (
+      <div className="bg-white border border-amber-100 rounded-lg divide-y divide-amber-50 overflow-hidden">
+        {tpServices.map((s: any, i: number) => {
+          const total = Number(s.monto_total) || 0;
+          const inicial = Number(s.inicial) || 0;
+          const mensual = Number(s.mensual) || 0;
+          return (
+            <div key={i} className="px-3 py-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-medium text-gray-900 text-sm">{s.service_name || `Servicio ${i + 1}`}</span>
+                  {s.service_type && (
+                    <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">
+                      {svcLabels[s.service_type] || s.service_type}
+                    </span>
+                  )}
+                  {s.modality && <span className="text-xs text-gray-400">{s.modality}</span>}
+                </div>
+                <span className="font-bold text-amber-700 text-sm ml-2 whitespace-nowrap">{fmt(total)}</span>
+              </div>
+              {(inicial > 0 || mensual > 0) && (
+                <div className="flex gap-4 mt-1 text-[11px] text-gray-500">
+                  {inicial > 0 && <span>Inicial: <b className="text-gray-700">{fmt(inicial)}</b></span>}
+                  {mensual > 0 && <span>Mensual: <b className="text-gray-700">{fmt(mensual)}</b></span>}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h4 className="font-medium text-gray-900">Presupuesto de la Consulta</h4>
-          {getStatusBadge()}
+          <div className="flex items-center gap-2">
+            {expandableCount > 0 && (
+              <button
+                onClick={toggleAll}
+                className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition"
+              >
+                {allExpanded ? 'Colapsar todo' : 'Expandir todo'}
+              </button>
+            )}
+            {getStatusBadge()}
+          </div>
         </div>
 
-        <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Diagnostico Definitivo:</span>
-              <span className="font-medium">S/ {Number(budget.definitive_diagnosis_total || 0).toFixed(2)}</span>
+        <div className="bg-amber-50 p-5 rounded-lg border border-amber-200">
+          {showDxRow && renderCategoryRow('dx', 'Diagnostico Definitivo', budget.definitive_diagnosis_total, dx, dxDetail)}
+          {showTxRow && renderCategoryRow('tx', 'Tratamientos', budget.treatments_total, tpItems, txDetail)}
+          {showSvcRow && renderCategoryRow('svc', 'Servicios Adicionales', budget.additional_services_total, tpServices, svcDetail)}
+
+          {showExamRow && (
+            <div className="border-b border-amber-200">
+              <div className="flex items-center justify-between py-3 px-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-4 h-4" aria-hidden="true" />
+                  <span className="text-sm font-medium text-gray-700">Examenes</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setExamModalOpen(true)}
+                    className="text-xs font-semibold text-amber-700 bg-white border border-amber-300 px-3 py-1 rounded-lg hover:bg-amber-100 transition flex items-center gap-1.5"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    Ver formulario de examenes
+                  </button>
+                  <span className="text-sm font-semibold text-gray-800">{fmt(budget.exams_total)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="pt-4 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-base font-bold text-gray-900">Total</span>
+              <span className="text-xl font-bold text-amber-700">{fmt(budget.grand_total)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Tratamientos:</span>
-              <span className="font-medium">S/ {Number(budget.treatments_total || 0).toFixed(2)}</span>
+              <span className="text-green-600">Adelanto</span>
+              <span className="font-medium text-green-700">{fmt(budget.advance_payment)}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Servicios Adicionales:</span>
-              <span className="font-medium">S/ {Number(budget.additional_services_total || 0).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Examenes:</span>
-              <span className="font-medium">S/ {Number(budget.exams_total || 0).toFixed(2)}</span>
-            </div>
-            <hr className="border-amber-300" />
-            <div className="flex justify-between text-lg font-bold">
-              <span className="text-gray-900">Total:</span>
-              <span className="text-amber-700">S/ {Number(budget.grand_total || 0).toFixed(2)}</span>
-            </div>
-            <hr className="border-amber-300" />
-            <div className="flex justify-between text-sm">
-              <span className="text-green-600">Adelanto:</span>
-              <span className="font-medium text-green-700">S/ {Number(budget.advance_payment || 0).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-base font-semibold">
-              <span className="text-red-600">Saldo Pendiente:</span>
-              <span className="text-red-700">S/ {Number(budget.balance || 0).toFixed(2)}</span>
+            <div className="flex justify-between items-center bg-red-50 -mx-5 px-5 py-2 rounded-b-lg border-t border-red-200 mt-2">
+              <span className="text-sm font-bold text-red-600">Saldo Pendiente</span>
+              <span className="text-lg font-bold text-red-700">{fmt(budget.balance)}</span>
             </div>
           </div>
         </div>
@@ -1928,10 +2122,223 @@ const PatientMedicalHistory = () => {
         {budget.budget_observations && (
           <div className="bg-gray-50 p-4 rounded-lg">
             <h5 className="font-medium text-gray-900 mb-2">Observaciones</h5>
-            <p className="text-sm text-gray-700">{budget.budget_observations}</p>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap">{budget.budget_observations}</p>
           </div>
         )}
       </div>
+    );
+  };
+
+  const renderExamModal = () => {
+    if (!examModalOpen || !selectedConsultation) return null;
+    const radiographyRequests: any[] = (selectedConsultation as any)?.radiography_requests || [];
+    const examResultsRaw: any = (selectedConsultation as any)?.exam_results;
+    const examResults: any[] = Array.isArray(examResultsRaw)
+      ? examResultsRaw
+      : (examResultsRaw ? [examResultsRaw] : []);
+
+    const getFullUrl = (path: string | null): string => {
+      if (!path) return '';
+      if (path.startsWith('http://') || path.startsWith('https://')) return path;
+      const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+      return `${BACKEND_URL}/${cleanPath}`;
+    };
+
+    const hasAny =
+      radiographyRequests.length > 0 ||
+      examResults.some(er => er?.doctor_observations || (er?.external_files?.length || 0) > 0);
+
+    const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
+      pending: { label: 'Pendiente', bg: 'bg-yellow-100', text: 'text-yellow-800' },
+      in_progress: { label: 'En proceso', bg: 'bg-blue-100', text: 'text-blue-800' },
+      completed: { label: 'Completado', bg: 'bg-green-100', text: 'text-green-800' },
+      delivered: { label: 'Entregado', bg: 'bg-emerald-100', text: 'text-emerald-800' },
+      cancelled: { label: 'Cancelado', bg: 'bg-red-100', text: 'text-red-800' },
+    };
+
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+        onClick={() => setExamModalOpen(false)}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-lg bg-cyan-100 flex items-center justify-center">
+                <ClipboardList className="w-5 h-5 text-cyan-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Formulario de examenes</h3>
+                <p className="text-xs text-gray-500">Solicitud de radiografia y resultados auxiliares</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setExamModalOpen(false)}
+              className="p-1.5 rounded-lg hover:bg-gray-100"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+
+          <div className="p-6 overflow-y-auto flex-1 space-y-5">
+            {!hasAny && (
+              <p className="text-sm text-gray-500 text-center py-8">Sin datos de examenes registrados</p>
+            )}
+
+            {radiographyRequests.map((req: any, i: number) => {
+              const requestData = req.request_data || {};
+              const tomografia3D: Tomografia3DFormData = {
+                ...INITIAL_TOMOGRAFIA_FORM,
+                ...requestData.tomografia3D
+              };
+              const radiografias: RadiografiasFormData = {
+                ...INITIAL_RADIOGRAFIAS_FORM,
+                ...requestData.radiografias
+              };
+              const hasTomografiaSelection = Object.values(tomografia3D).some(
+                v => v === true || (typeof v === 'string' && v.trim())
+              );
+              const hasRadiografiasSelection = Object.values(radiografias).some(
+                v => v === true || (Array.isArray(v) && v.length > 0) || (typeof v === 'string' && v.trim())
+              );
+              const typeLabel = req.radiography_type === 'diagnostic_plan'
+                ? (hasTomografiaSelection && hasRadiografiasSelection ? 'Tomografia 3D + Radiografias'
+                   : hasTomografiaSelection ? 'Tomografia 3D'
+                   : hasRadiografiasSelection ? 'Radiografias'
+                   : 'Plan Diagnostico')
+                : (req.radiography_type || 'Plan Diagnostico');
+              const sts = statusConfig[req.request_status] || statusConfig.pending;
+
+              return (
+                <div key={i} className="bg-purple-50/40 border border-purple-100 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-xs font-bold text-purple-700 uppercase tracking-wider">
+                      Solicitud de radiografia{radiographyRequests.length > 1 ? ` #${i + 1}` : ''}
+                    </h4>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium ${sts.bg} ${sts.text}`}>
+                      {sts.label}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                    <div>
+                      <span className="text-[11px] text-gray-500 uppercase">Tipo</span>
+                      <p className="text-gray-800 font-medium">{typeLabel}</p>
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-gray-500 uppercase">Urgencia</span>
+                      <p className="text-gray-800 font-medium">{req.urgency || '-'}</p>
+                    </div>
+                    {req.area_of_interest && (
+                      <div className="col-span-2">
+                        <span className="text-[11px] text-gray-500 uppercase">Area de interes</span>
+                        <p className="text-gray-800">{req.area_of_interest}</p>
+                      </div>
+                    )}
+                    {req.clinical_indication && (
+                      <div className="col-span-2">
+                        <span className="text-[11px] text-gray-500 uppercase">Indicacion clinica</span>
+                        <p className="text-gray-800 leading-relaxed">{req.clinical_indication}</p>
+                      </div>
+                    )}
+                    {req.request_date && (
+                      <div>
+                        <span className="text-[11px] text-gray-500 uppercase">Fecha solicitud</span>
+                        <p className="text-gray-800">{formatTimestampToLima(req.request_date, 'date')}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {hasTomografiaSelection && (
+                    <div className="mt-3">
+                      <Tomografia3DSection mode="view" colorTheme="cyan" showPrices={false} formData={tomografia3D} />
+                    </div>
+                  )}
+                  {hasRadiografiasSelection && (
+                    <div className="mt-3">
+                      <RadiografiasSection mode="view" colorTheme="cyan" showPrices={false} formData={radiografias} />
+                    </div>
+                  )}
+                  {!hasTomografiaSelection && !hasRadiografiasSelection && (
+                    <p className="text-xs text-purple-700/70 italic">Solicitud registrada sin detalles adicionales</p>
+                  )}
+                </div>
+              );
+            })}
+
+            {examResults.map((er: any, erIdx: number) => {
+              const hasObs = !!er?.doctor_observations;
+              const hasFiles = (er?.external_files?.length || 0) > 0;
+              if (!hasObs && !hasFiles) return null;
+              return (
+                <div key={`er-${erIdx}`} className="bg-cyan-50/40 border border-cyan-100 rounded-xl p-4">
+                  <h4 className="text-xs font-bold text-cyan-700 uppercase tracking-wider mb-3">
+                    Resultados auxiliares{examResults.length > 1 ? ` #${erIdx + 1}` : ''}
+                  </h4>
+                  {hasObs && (
+                    <>
+                      <h5 className="text-[11px] font-semibold text-cyan-700 uppercase tracking-wider mb-1">
+                        Observaciones del doctor
+                      </h5>
+                      <p className="text-sm text-gray-700 leading-relaxed mb-4 whitespace-pre-wrap">
+                        {er.doctor_observations}
+                      </p>
+                    </>
+                  )}
+                  {hasFiles && (
+                    <>
+                      <h5 className="text-[11px] font-semibold text-cyan-700 uppercase tracking-wider mb-2">
+                        Archivos adjuntos
+                      </h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {er.external_files.map((file: any, i: number) => {
+                          const filePath = typeof file === 'string' ? file : (file.path || file.url || file.filename || '');
+                          const fileName = (file && typeof file === 'object' && file.name) ? file.name : (filePath.split('/').pop() || `Archivo ${i + 1}`);
+                          const fullUrl = getFullUrl(filePath);
+                          return (
+                            <a
+                              key={i}
+                              href={fullUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-3 p-3 bg-white border border-cyan-100 rounded-lg hover:bg-cyan-50 transition-colors"
+                            >
+                              <div className="w-9 h-9 rounded-lg bg-cyan-100 flex items-center justify-center">
+                                <FileText className="w-5 h-5 text-cyan-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-gray-800 truncate">{fileName}</p>
+                              </div>
+                              <span className="text-[11px] font-semibold text-cyan-700">Abrir</span>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="px-6 py-4 border-t border-gray-200 flex justify-end flex-shrink-0">
+            <button
+              onClick={() => setExamModalOpen(false)}
+              className="text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition"
+            >
+              Cerrar
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
     );
   };
 
@@ -2197,6 +2604,11 @@ const PatientMedicalHistory = () => {
           toast.success('Cita agendada exitosamente');
         }}
       />
+
+      {/* Modal formulario de examenes (seccion Presupuesto) */}
+      <AnimatePresence>
+        {renderExamModal()}
+      </AnimatePresence>
 
       {/* Modal para ver imagen en pantalla completa */}
       <AnimatePresence>

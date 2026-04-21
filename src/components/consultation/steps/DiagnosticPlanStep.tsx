@@ -9,7 +9,7 @@
  * y se notifica automáticamente a los técnicos de laboratorio.
  */
 
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { motion } from 'framer-motion';
 import { formatDateToYMD } from '@/utils/dateUtils';
 import {
@@ -227,6 +227,11 @@ const DiagnosticPlanStepComponent = ({
   // Estado para datos del dentista (COP, especialidad)
   const [dentistData, setDentistData] = useState<DentistData | null>(null);
 
+  // Guardia anti-clic-doble. Si un save está en curso, descartamos nuevos disparos
+  // hasta que termine. Evita crear 2 registros cuando el usuario hace clic rápido
+  // en "Guardar" dentro de Tomografía y luego en Radiografías (o viceversa).
+  const isSavingRef = useRef(false);
+
   // Cargar datos del dentista desde la API
   useEffect(() => {
     const loadDentistData = async () => {
@@ -292,10 +297,18 @@ const DiagnosticPlanStepComponent = ({
   };
 
   /**
-   * Guarda la solicitud de exámenes en la base de datos
-   * usando el endpoint upsert (crea o actualiza según consultation_id)
+   * Guarda la solicitud de exámenes en la base de datos.
+   * El endpoint /radiography/upsert decide server-side:
+   *   - Si se envía radiography_request_id (hint) y sigue 'pending' → UPDATE sobre ese.
+   *   - Si no, busca por consultation_id y actualiza la última 'pending'.
+   *   - En cualquier otro caso, crea una solicitud nueva.
+   * La operación va envuelta en una transacción con pg_advisory_xact_lock para
+   * serializar saves simultáneos sobre la misma consulta/paciente.
    */
   const saveRadiographyRequest = async () => {
+    // Guardia anti-concurrencia: si otro save está en vuelo, no disparamos uno nuevo.
+    if (isSavingRef.current) return true;
+    isSavingRef.current = true;
     try {
       // Validar datos mínimos
       if (!patient) {
@@ -379,8 +392,13 @@ const DiagnosticPlanStepComponent = ({
         telefono: dentistData?.phone || dentistData?.mobile || user.phone || user.profile?.phone || ''
       };
 
-      // Preparar payload para la API
+      // Preparar payload para la API.
+      // radiography_request_id se envía como "hint" cuando ya tenemos uno de un save
+      // previo en esta misma sesión. Permite que el BE localice el registro aun cuando
+      // la consulta (consultation_id) todavía no existiera al momento del primer save.
       const requestPayload = {
+        radiography_request_id:
+          currentRecord.radiography_request_id || currentRecord.radiographyRequestId || null,
         patient_id: patient.patient_id || patient.id,
         dentist_id: user.dentist_id || user.id,
         branch_id: user.branch_id || user.profile?.branch_id || 1,
@@ -426,6 +444,8 @@ const DiagnosticPlanStepComponent = ({
     } catch (error: any) {
       toast.error(error.message || 'Error al procesar la solicitud de exámenes');
       return false;
+    } finally {
+      isSavingRef.current = false;
     }
   };
 

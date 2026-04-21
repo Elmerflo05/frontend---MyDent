@@ -54,22 +54,22 @@ export const QUADRANT_POSITIONS = {
   adultos: {
     superior: {
       cuadrante1: { x: 120, y: 49 },   // Superior derecho
-      cuadrante2: { x: 1040, y: 49 }   // Superior izquierdo
+      cuadrante2: { x: 730, y: 49 }    // Superior izquierdo
     },
     inferior: {
       cuadrante4: { x: 120, y: 850 },  // Inferior derecho
-      cuadrante3: { x: 1040, y: 850 }  // Inferior izquierdo
+      cuadrante3: { x: 730, y: 850 }   // Inferior izquierdo
     }
   },
   // Niños (deciduos)
   ninos: {
     superior: {
       cuadrante5: { x: 434, y: 385 },  // Superior derecho
-      cuadrante6: { x: 1040, y: 385 }  // Superior izquierdo
+      cuadrante6: { x: 730, y: 385 }   // Superior izquierdo
     },
     inferior: {
       cuadrante8: { x: 434, y: 525 },  // Inferior derecho
-      cuadrante7: { x: 1040, y: 525 }  // Inferior izquierdo
+      cuadrante7: { x: 730, y: 525 }   // Inferior izquierdo
     }
   }
 };
@@ -107,7 +107,7 @@ export const VERTICAL_OFFSETS = {
 export const ODONTOGRAM_VIEWBOX = {
   x: 0,
   y: -200,       // Incluye espacio para anotaciones superiores (y=-133)
-  width: 1850,   // Reducido de 1960
+  width: 1390,   // Reducido: elimina espacio central entre cuadrantes derecho/izquierdo
   height: 1400   // Aumentado para incluir rango completo desde -200 hasta 1200
 };
 
@@ -268,7 +268,7 @@ export function getAlignedToothX(toothNumber: string, quadrantArray: string[]): 
   if (quadrant === 1 || quadrant === 4) {
     baseX = 120; // Adultos derecho
   } else if (quadrant === 2 || quadrant === 3) {
-    baseX = 1040; // Adultos izquierdo
+    baseX = 730; // Adultos izquierdo
   } else {
     // Dientes deciduos: usar equivalente adulto para calcular X
     const adultEquiv = getAdultEquivalent(toothNumber);
@@ -277,7 +277,7 @@ export function getAlignedToothX(toothNumber: string, quadrantArray: string[]): 
     const adultPosition = parseInt(adultParts[1]);
 
     // Base X del cuadrante adulto equivalente
-    baseX = (adultQuadrant === 1 || adultQuadrant === 4) ? 120 : 1040;
+    baseX = (adultQuadrant === 1 || adultQuadrant === 4) ? 120 : 730;
 
     // Calcular índice en el array adulto (1.8→0, 1.7→1, ..., 1.1→7)
     const adultIdx = (adultQuadrant === 1 || adultQuadrant === 4)
