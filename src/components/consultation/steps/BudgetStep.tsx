@@ -41,6 +41,7 @@ import { radiographyRequestsApi, type RadiographyRequestData } from '@/services/
 import { promotionsApi, type PromotionData } from '@/services/api/promotionsApi';
 import { CheckCircle2, Scan, Radio, RefreshCw, Tag, Percent } from 'lucide-react';
 import { formatCurrency } from '../utils/treatmentPlanHelpers';
+import { getEffectiveProcedurePrice } from '@/components/consultation/final-diagnosis';
 
 interface BudgetStepProps {
   // Paciente seleccionado
@@ -596,11 +597,10 @@ const BudgetStepComponent = ({
 
   // FALLBACK: Calcular total desde datos locales si no hay datos de BD
   const localConditionsForTotal = currentRecord?.definitiveConditions || [];
-  const localTotal = localConditionsForTotal.reduce((sum: number, cond: any) => {
-    // Priorizar procedure_price sobre price
-    const condPrice = cond.procedure_price ?? cond.definitive?.price ?? cond.price ?? 0;
-    return sum + Number(condPrice);
-  }, 0);
+  const localTotal = localConditionsForTotal.reduce(
+    (sum: number, cond: any) => sum + getEffectiveProcedurePrice(cond),
+    0
+  );
 
   // Prioridad: BD summary > BD guardado > Local calculado
   const definitiveDiagnosisTotal = definitiveDiagnosisFromSummary > 0
@@ -692,7 +692,7 @@ const BudgetStepComponent = ({
     tooth_number: cond.toothNumber || cond.tooth_number,
     condition_label: cond.definitive?.conditionLabel || cond.condition_label || cond._conditionName || '',
     condition_name: cond._conditionName || cond.definitive?.conditionLabel || '',
-    price: cond.definitive?.price || cond.price || 0,
+    price: getEffectiveProcedurePrice(cond),
     procedure_price: cond.procedure_price ?? null,
     selected_procedure_id: cond.selected_procedure_id || cond.selectedProcedureId || null,
     selected_procedure_name: cond.selected_procedure_name || cond._selected_procedure_name || null,
@@ -801,8 +801,7 @@ const BudgetStepComponent = ({
                 <p className="text-sm text-gray-400 p-3 text-center">Sin procedimientos</p>
               ) : (
                 definitiveDiagnosisConditions.map((condition, index) => {
-                  // CORREGIDO: Priorizar procedure_price (precio del procedimiento seleccionado) sobre price (precio base)
-                  const price = Number(condition.procedure_price ?? condition.price ?? condition.condition_price_base ?? 0);
+                  const price = getEffectiveProcedurePrice(condition);
                   const conditionName = condition.condition_label || condition.condition_name || '';
                   const toothNumber = condition.tooth_number || '-';
                   const surfaces = condition.surfaces_array || [];

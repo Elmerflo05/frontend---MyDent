@@ -43,6 +43,7 @@ import { handleViewConsent, handlePrintConsent, handleDownloadConsent } from '..
 import { exportPatientIntegralPDF } from '../../utils/exportPatientPDF';
 import type { PatientIntegralData } from '../../services/patientApiService';
 import { ROLES } from '@/constants/roles';
+import AdditionalServicesAccountStatement from '@/components/additionalServices/AdditionalServicesAccountStatement';
 
 /**
  * Formatea una fecha string (YYYY-MM-DD) a formato legible sin desfase de timezone
@@ -833,6 +834,16 @@ export const PatientDetailsModal = ({
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {patient?.id && (
+            <div className="mt-6">
+              <AdditionalServicesAccountStatement
+                patientId={Number(patient.id)}
+                title="Estado de cuenta — Servicios adicionales"
+                emptyMessage="El paciente no tiene tratamientos extendidos (ortodoncia, implantes o prótesis)."
+              />
             </div>
           )}
         </div>

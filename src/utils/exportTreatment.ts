@@ -8,6 +8,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { formatDateToYMD } from '@/utils/dateUtils';
+import { getEffectiveProcedurePrice } from '@/components/consultation/final-diagnosis';
 
 // ========== MAPEOS Y HELPERS PARA EXPORTACIÓN ==========
 
@@ -161,18 +162,6 @@ const getProcedureName = (condition: any): string => {
          condition?.procedure_name ||
          condition?.procedureName ||
          '-';
-};
-
-/**
- * Obtiene el precio del procedimiento de una condición
- */
-const getProcedurePrice = (condition: any): number => {
-  // procedure_price tiene prioridad (precio del procedimiento seleccionado)
-  if (condition?.procedure_price !== undefined && condition.procedure_price !== null) {
-    return Number(condition.procedure_price) || 0;
-  }
-  // Fallback a price de la condición
-  return Number(condition?.price) || 0;
 };
 
 interface ExportTreatmentData {
@@ -1069,7 +1058,7 @@ export const exportTreatmentAsPDF = async (data: ExportTreatmentData): Promise<v
           cond.tooth_number || 'General',
           cond.condition_label || cond.label || cond.condition_name || 'N/A',
           getProcedureName(cond),
-          formatPrice(getProcedurePrice(cond))
+          formatPrice(getEffectiveProcedurePrice(cond))
         ];
       });
 

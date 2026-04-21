@@ -61,9 +61,9 @@ export const QUADRANT_CONFIGS: QuadrantConfig[] = [
     isAdult: true,
     positions: {
       xStart: 730,
-      yTooth: 850,
-      yAnnotation: 1053,
-      yLabel: 1113
+      yTooth: 767,
+      yAnnotation: 970,
+      yLabel: 1030
     },
     getX: (tooth, idx) => 730 + idx * TOOTH_SPACING
   },
@@ -74,9 +74,9 @@ export const QUADRANT_CONFIGS: QuadrantConfig[] = [
     isAdult: true,
     positions: {
       xStart: 120,
-      yTooth: 850,
-      yAnnotation: 1053,
-      yLabel: 1113
+      yTooth: 767,
+      yAnnotation: 970,
+      yLabel: 1030
     },
     getX: (tooth, idx) => 120 + idx * TOOTH_SPACING
   },
@@ -88,9 +88,9 @@ export const QUADRANT_CONFIGS: QuadrantConfig[] = [
     isAdult: false,
     positions: {
       useAlignedX: true,
-      yTooth: 385,
-      yAnnotation: 175,
-      yLabel: 235
+      yTooth: 344,
+      yAnnotation: 134,
+      yLabel: 194
     },
     getX: (tooth, idx, teeth) => getAlignedToothX(tooth, teeth)
   },
@@ -101,9 +101,9 @@ export const QUADRANT_CONFIGS: QuadrantConfig[] = [
     isAdult: false,
     positions: {
       useAlignedX: true,
-      yTooth: 385,
-      yAnnotation: 175,
-      yLabel: 235
+      yTooth: 344,
+      yAnnotation: 134,
+      yLabel: 194
     },
     getX: (tooth, idx, teeth) => getAlignedToothX(tooth, teeth)
   },
@@ -115,9 +115,9 @@ export const QUADRANT_CONFIGS: QuadrantConfig[] = [
     isAdult: false,
     positions: {
       useAlignedX: true,
-      yTooth: 525,
-      yAnnotation: 735,
-      yLabel: 795
+      yTooth: 459,
+      yAnnotation: 669,
+      yLabel: 729
     },
     getX: (tooth, idx, teeth) => getAlignedToothX(tooth, teeth)
   },
@@ -128,9 +128,9 @@ export const QUADRANT_CONFIGS: QuadrantConfig[] = [
     isAdult: false,
     positions: {
       useAlignedX: true,
-      yTooth: 525,
-      yAnnotation: 735,
-      yLabel: 795
+      yTooth: 459,
+      yAnnotation: 669,
+      yLabel: 729
     },
     getX: (tooth, idx, teeth) => getAlignedToothX(tooth, teeth)
   }

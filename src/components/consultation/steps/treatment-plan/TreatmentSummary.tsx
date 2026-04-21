@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle, AlertCircle, Edit2, Stethoscope, DollarSign } from 'lucide-react';
 import { formatCurrency } from '../../utils/treatmentPlanHelpers';
+import { getEffectiveProcedurePrice } from '@/components/consultation/final-diagnosis';
 
 interface TreatmentSummaryProps {
   groupedConditionsByTooth: Record<string, any[]>;
@@ -36,12 +37,11 @@ export const TreatmentSummary: React.FC<TreatmentSummaryProps> = ({
 
   const allConditions = Object.values(groupedConditionsByTooth).flat();
 
-  // Calcular totales
-  // El precio total debe considerar el procedure_price si existe, sino el price de la condición
-  const totalPrice = allConditions.reduce((sum, cond) => {
-    const price = cond.procedure_price || cond.price || 0;
-    return sum + Number(price);
-  }, 0);
+  // Calcular totales (precio efectivo: procedure_price si existe, fallback a price)
+  const totalPrice = allConditions.reduce(
+    (sum, cond) => sum + getEffectiveProcedurePrice(cond),
+    0
+  );
 
   const modifiedCount = allConditions.filter(cond => cond.modified).length;
   const withProcedureCount = allConditions.filter(cond => cond.selected_procedure_name).length;
@@ -56,11 +56,10 @@ export const TreatmentSummary: React.FC<TreatmentSummaryProps> = ({
 
           // Procedimiento seleccionado (viene del Paso 6)
           const selectedProcName = condition.selected_procedure_name || condition._selected_procedure_name;
-          const selectedProcPrice = condition.procedure_price;
           const hasProcedure = !!selectedProcName;
 
-          // Precio a mostrar: si hay procedimiento usar su precio, sino el de la condición
-          const displayPrice = selectedProcPrice || condition.price || 0;
+          // Precio efectivo (fuente única de verdad)
+          const displayPrice = getEffectiveProcedurePrice(condition);
 
           return (
             <div

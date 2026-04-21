@@ -20,7 +20,6 @@ interface AuthActions {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   updateProfile: (updates: Partial<User['profile']>) => Promise<boolean>;
-  changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
   clearError: () => void;
   setLoading: (loading: boolean) => void;
   setHasHydrated: (hydrated: boolean) => void; // 🔧 Nueva acción
@@ -213,37 +212,6 @@ export const useAuthStore = create<AuthStore>()(
           return true;
         } catch (error) {
           logger.error('Error al actualizar perfil', error);
-          monitoredSet({
-            error: error instanceof Error ? error.message : 'Error de conexión',
-            isLoading: false
-          });
-          return false;
-        }
-      },
-
-      changePassword: async (currentPassword: string, newPassword: string): Promise<boolean> => {
-        monitoredSet({ isLoading: true, error: null });
-
-        try {
-          const response = await ApiAuthService.changePassword(currentPassword, newPassword);
-
-          if (response.success) {
-            logger.auth('Contraseña actualizada exitosamente');
-            monitoredSet({
-              isLoading: false,
-              error: null
-            });
-            return true;
-          } else {
-            logger.warn('Error al cambiar contraseña', response.message);
-            monitoredSet({
-              error: response.message || 'Error al cambiar contraseña',
-              isLoading: false
-            });
-            return false;
-          }
-        } catch (error) {
-          logger.error('Error al cambiar contraseña', error);
           monitoredSet({
             error: error instanceof Error ? error.message : 'Error de conexión',
             isLoading: false

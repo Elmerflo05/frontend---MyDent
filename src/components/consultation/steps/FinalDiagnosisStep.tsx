@@ -34,6 +34,7 @@ import {
   calculateTotalPrice,
   createInitialDefinitiveConditions,
   generateConditionId,
+  getEffectiveProcedurePrice,
   PresumptiveConditionsList,
   ConditionFormFields,
   DefinitiveConditionCard,
@@ -398,6 +399,8 @@ const FinalDiagnosisStepComponent = ({
         const procId = (cond as any).selected_procedure_id ?? (cond as any).selectedProcedureId ?? null;
         const procPrice = (cond as any).procedure_price;
         const finalProcPrice = procPrice !== null && procPrice !== undefined ? procPrice : null;
+        // Invariante de coherencia: si hay procedimiento seleccionado, price = procedure_price
+        const persistedPrice = finalProcPrice !== null ? finalProcPrice : cond.definitive.price;
 
         return {
           presumptive_condition_id: null,
@@ -410,7 +413,7 @@ const FinalDiagnosisStepComponent = ({
           condition_label: cond.definitive.conditionLabel,
           cie10_code: cond.definitive.cie10 || null,
           surfaces: cond.surfaces || cond.definitive.surfaces || [],
-          price: cond.definitive.price,
+          price: persistedPrice,
           notes: cond.definitive.notes || null,
           is_modified_from_presumptive: cond.modified,
           modification_reason: cond.modified ? 'Modificado por el doctor' : null,
@@ -575,6 +578,8 @@ const FinalDiagnosisStepComponent = ({
         ? `${cond.toothNumber[0]}.${cond.toothNumber[1]}`
         : cond.toothNumber;
 
+      const effectivePrice = getEffectiveProcedurePrice(cond);
+
       return {
         toothNumber,
         sectionId: cond.surfaces?.[0] || 'general',
@@ -584,7 +589,10 @@ const FinalDiagnosisStepComponent = ({
         notes: cond.definitive.notes || '',
         date: new Date(),
         patientId: selectedPatient?.id,
-        price: cond.definitive.price || 0,
+        price: effectivePrice,
+        procedure_price: (cond as any).procedure_price ?? null,
+        selected_procedure_id: (cond as any).selected_procedure_id ?? null,
+        selected_procedure_name: (cond as any).selected_procedure_name ?? null,
         dental_condition_id: cond.definitive.dentalConditionId || cond._dentalConditionId,
         tooth_position_id: cond.toothPositionId || cond._toothPositionId,
         tooth_surface_id: cond.toothSurfaceId,
@@ -1407,23 +1415,25 @@ const FinalDiagnosisStepComponent = ({
                     onEdit={handleEditCondition}
                     onDelete={handleRemoveCondition}
                     onProcedureChange={(conditionId, procedureId, procedurePrice, procedureName) => {
-                      // Actualizar la condición con el procedimiento seleccionado
-                      setDefinitiveConditions(prev => {
-                        const updated = prev.map(cond => {
-                          if (cond.id === conditionId) {
-                            return {
-                              ...cond,
-                              selected_procedure_id: procedureId,
-                              selectedProcedureId: procedureId,
-                              selected_procedure_name: procedureName,
-                              _selected_procedure_name: procedureName,
-                              procedure_price: procedurePrice
-                            } as any;
+                      // Actualizar la condición con el procedimiento seleccionado.
+                      // IMPORTANTE: procedure_price es la fuente efectiva del precio, pero también
+                      // sincronizamos definitive.price para mantener invariante de coherencia en
+                      // toda la aplicación (odontograma, paso 10, exports, procedure_income.amount).
+                      setDefinitiveConditions(prev => prev.map(cond => {
+                        if (cond.id !== conditionId) return cond;
+                        return {
+                          ...cond,
+                          selected_procedure_id: procedureId,
+                          selectedProcedureId: procedureId,
+                          selected_procedure_name: procedureName,
+                          _selected_procedure_name: procedureName,
+                          procedure_price: procedurePrice,
+                          definitive: {
+                            ...cond.definitive,
+                            price: procedurePrice
                           }
-                          return cond;
-                        });
-                        return updated;
-                      });
+                        } as any;
+                      }));
                       setUnsavedChanges(true);
                     }}
                   />

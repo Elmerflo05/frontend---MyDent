@@ -54,6 +54,7 @@ import {
   type ConsultationAdditionalService
 } from '@/services/api/consultationsApi';
 import { evolutionOdontogramApi, type EvolutionOdontogramData } from '@/services/api/evolutionOdontogramApi';
+import { getEffectiveProcedurePrice } from '@/components/consultation/final-diagnosis';
 
 /**
  * Genera una clave única y estable para un procedimiento del diagnóstico definitivo.
@@ -426,6 +427,7 @@ const TreatmentPerformedStepComponent = ({
         const toothNumber = cond.toothNumber || cond.tooth_number || '';
         const dentalConditionId = cond.dental_condition_id || cond.dentalConditionId ||
           (typeof cond.conditionId === 'string' ? cond.conditionId.replace('condition-', '') : cond.conditionId);
+        const effectivePrice = getEffectiveProcedurePrice(cond);
 
         return {
           definitive_condition_id: cond.definitive_condition_id || cond.definitiveConditionId || index,
@@ -436,7 +438,7 @@ const TreatmentPerformedStepComponent = ({
           condition_label: cond.label || cond.conditionName || cond.condition_name || cond.condition_label || 'Condición',
           condition_name: cond.conditionName || cond.condition_name || cond.label || cond.condition_label || 'Condición',
           condition_code: cond.conditionId || cond.condition_code || `condition-${dentalConditionId || index}`,
-          price: cond.price || 0,
+          price: effectivePrice,
           procedure_price: cond.procedure_price ?? null,
           selected_procedure_id: cond.selected_procedure_id || null,
           selected_procedure_name: cond.selected_procedure_name || null,
@@ -459,7 +461,7 @@ const TreatmentPerformedStepComponent = ({
       const conditionLabel = cond.definitive?.conditionLabel || cond.condition_label || cond.conditionLabel || cond._conditionName || cond.conditionName || '';
       const conditionName = cond._conditionName || cond.conditionName || cond.definitive?.conditionLabel || cond.condition_name || conditionLabel;
       const conditionCode = cond.condition_code || cond.conditionCode || cond._conditionCode || cond.definitive?.conditionId || `condition-${dentalConditionId}`;
-      const price = cond.definitive?.price || cond.price || 0;
+      const price = getEffectiveProcedurePrice(cond);
       const surfaces = cond.surfaces || cond.definitive?.surfaces || [];
 
       return {

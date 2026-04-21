@@ -10,6 +10,7 @@
 
 import { OFFICIAL_DENTAL_CONDITIONS } from '@/constants/dentalConditions';
 import type { DentalCondition } from '@/constants/dentalConditions';
+import { getEffectiveProcedurePrice } from '@/components/consultation/final-diagnosis';
 
 // ============================================================================
 // TYPES
@@ -98,14 +99,7 @@ export class DiagnosisService {
   static calculateDefinitiveTotal(
     conditions: DefinitiveDiagnosticCondition[]
   ): number {
-    return conditions.reduce((sum, cond) => {
-      // Priorizar procedure_price si existe un procedimiento asignado
-      const price = (cond as any).procedure_price ||
-                    (cond.definitive as any)?.procedure_price ||
-                    cond.definitive.price ||
-                    0;
-      return sum + Number(price);
-    }, 0);
+    return conditions.reduce((sum, cond) => sum + getEffectiveProcedurePrice(cond), 0);
   }
 
   /**

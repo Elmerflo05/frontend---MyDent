@@ -253,19 +253,6 @@ export class AuthService {
     // No-op: logging should be handled by the backend
   }
 
-  // Change password
-  // NOTA: Este método es un stub. Use la API de backend para cambiar contraseña.
-  static async changePassword(
-    currentPassword: string,
-    newPassword: string
-  ): Promise<AuthResponse> {
-    console.warn('⚠️ AuthService.changePassword: Este método es un stub. Use la API de backend para cambiar contraseña.');
-    return {
-      success: false,
-      message: 'Use la API de backend para cambiar contraseña'
-    };
-  }
-
   // Update user profile
   // NOTA: Este método es un stub. Use la API de backend para actualizar perfil.
   static async updateProfile(updates: Partial<User['profile']>): Promise<AuthResponse> {

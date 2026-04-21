@@ -21,7 +21,6 @@ export interface UseApiAuthReturn {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   updateProfile: (updates: Partial<User['profile']>) => Promise<boolean>;
-  changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
   clearError: () => void;
 
   // Permission checks
@@ -52,7 +51,6 @@ export const useApiAuth = (): UseApiAuthReturn => {
     logout,
     refreshUser,
     updateProfile,
-    changePassword,
     clearError,
     hasRole,
     hasPermission,
@@ -177,7 +175,6 @@ export const useApiAuth = (): UseApiAuthReturn => {
     logout: handleLogout,
     refreshUser,
     updateProfile,
-    changePassword,
     clearError,
 
     // Permission checks

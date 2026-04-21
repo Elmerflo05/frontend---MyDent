@@ -44,6 +44,7 @@ import { MonthlyPaymentTracker, type MonthlyPaymentTrackerRef } from './MonthlyP
 import { procedureIncomeApi, type ProcedureIncomeData } from '@/services/api/procedureIncomeApi';
 import { procedureHistoryApi } from '@/services/api/procedureHistoryApi';
 import { evolutionOdontogramApi } from '@/services/api/evolutionOdontogramApi';
+import { getEffectiveProcedurePrice } from '@/components/consultation/final-diagnosis';
 import type {
   ConsultationTreatmentItem,
   ConsultationAdditionalService,
@@ -421,7 +422,7 @@ export const TreatmentChecklistSection = forwardRef<TreatmentChecklistSectionRef
             key,
             type: 'procedure',
             data: cond,
-            amount: Number(cond.price || 0)
+            amount: getEffectiveProcedurePrice(cond)
           });
         }
       } else if (key.includes('-cond-')) {
@@ -966,7 +967,7 @@ export const TreatmentChecklistSection = forwardRef<TreatmentChecklistSectionRef
                     key={uniqueKey}
                     itemKey={uniqueKey}
                     label={cond.condition_label || cond.condition_name || 'Procedimiento'}
-                    price={Number(cond.price || 0)}
+                    price={getEffectiveProcedurePrice(cond)}
                     badge={`D${cond.tooth_number || '-'}`}
                     badgeColor="bg-blue-100 text-blue-600"
                   />
@@ -1029,11 +1030,10 @@ export const TreatmentChecklistSection = forwardRef<TreatmentChecklistSectionRef
                 >
                   {orthodonticServices.map((service, sIndex) => {
                     const serviceId = service.consultation_additional_service_id;
-                    const inicial = Number(service.editedFields?.inicial || service.edited_inicial || service.originalFields?.inicial || service.original_inicial || 0);
-                    const mensual = Number(service.editedFields?.mensual || service.edited_mensual || service.originalFields?.mensual || service.original_mensual || 0);
+                    const montoTotal = Number(service.editedFields?.montoTotal || service.edited_monto_total || service.originalFields?.montoTotal || service.original_monto_total || 0);
                     const serviceName = service.name || service.service_name || 'Ortodoncia';
 
-                    if (serviceId && hasApiIntegration && (inicial > 0 || mensual > 0)) {
+                    if (serviceId && hasApiIntegration && montoTotal > 0) {
                       const trackerKey = `ortho-${sIndex}`;
                       return (
                         <MonthlyPaymentTracker
@@ -1041,13 +1041,10 @@ export const TreatmentChecklistSection = forwardRef<TreatmentChecklistSectionRef
                           ref={getRefCallback(trackerKey)}
                           serviceId={serviceId}
                           serviceName={serviceName}
-                          serviceType="orthodontic"
                           consultationId={consultationId!}
                           patientId={typeof patientId === 'string' ? parseInt(patientId) : patientId!}
                           branchId={branchId!}
                           dentistId={dentistId!}
-                          initialPaymentAmount={inicial}
-                          monthlyPaymentAmount={mensual}
                           readOnly={readOnly}
                           compact
                         />
@@ -1059,7 +1056,7 @@ export const TreatmentChecklistSection = forwardRef<TreatmentChecklistSectionRef
                         key={`ortho-${sIndex}`}
                         itemKey={`ortho-${sIndex}`}
                         label={serviceName}
-                        price={Number(service.editedFields?.montoTotal || service.edited_monto_total || service.originalFields?.montoTotal || service.original_monto_total || 0)}
+                        price={montoTotal}
                       />
                     );
                   })}
@@ -1077,11 +1074,10 @@ export const TreatmentChecklistSection = forwardRef<TreatmentChecklistSectionRef
                 >
                   {implantServices.map((service, sIndex) => {
                     const serviceId = service.consultation_additional_service_id;
-                    const inicial = Number(service.editedFields?.inicial || service.edited_inicial || service.originalFields?.inicial || service.original_inicial || 0);
-                    const mensual = Number(service.editedFields?.mensual || service.edited_mensual || service.originalFields?.mensual || service.original_mensual || 0);
+                    const montoTotal = Number(service.editedFields?.montoTotal || service.edited_monto_total || service.originalFields?.montoTotal || service.original_monto_total || 0);
                     const serviceName = service.name || service.service_name || 'Implante';
 
-                    if (serviceId && hasApiIntegration && (inicial > 0 || mensual > 0)) {
+                    if (serviceId && hasApiIntegration && montoTotal > 0) {
                       const trackerKey = `implant-${sIndex}`;
                       return (
                         <MonthlyPaymentTracker
@@ -1089,13 +1085,10 @@ export const TreatmentChecklistSection = forwardRef<TreatmentChecklistSectionRef
                           ref={getRefCallback(trackerKey)}
                           serviceId={serviceId}
                           serviceName={serviceName}
-                          serviceType="implant"
                           consultationId={consultationId!}
                           patientId={typeof patientId === 'string' ? parseInt(patientId) : patientId!}
                           branchId={branchId!}
                           dentistId={dentistId!}
-                          initialPaymentAmount={inicial}
-                          monthlyPaymentAmount={mensual}
                           readOnly={readOnly}
                           compact
                         />
@@ -1107,7 +1100,7 @@ export const TreatmentChecklistSection = forwardRef<TreatmentChecklistSectionRef
                         key={`implant-${sIndex}`}
                         itemKey={`implant-${sIndex}`}
                         label={serviceName}
-                        price={Number(service.editedFields?.montoTotal || service.edited_monto_total || service.originalFields?.montoTotal || service.original_monto_total || 0)}
+                        price={montoTotal}
                       />
                     );
                   })}
@@ -1123,14 +1116,38 @@ export const TreatmentChecklistSection = forwardRef<TreatmentChecklistSectionRef
                   color="orange"
                   completed={countCompleted('prosthesis', prosthesisServices.length)}
                 >
-                  {prosthesisServices.map((service, index) => (
-                    <CompactItem
-                      key={`prosthesis-${index}`}
-                      itemKey={`prosthesis-${index}`}
-                      label={service.name || service.service_name || 'Protesis'}
-                      price={Number(service.editedFields?.montoTotal || service.edited_monto_total || service.originalFields?.montoTotal || service.original_monto_total || 0)}
-                    />
-                  ))}
+                  {prosthesisServices.map((service, sIndex) => {
+                    const serviceId = service.consultation_additional_service_id;
+                    const montoTotal = Number(service.editedFields?.montoTotal || service.edited_monto_total || service.originalFields?.montoTotal || service.original_monto_total || 0);
+                    const serviceName = service.name || service.service_name || 'Protesis';
+
+                    if (serviceId && hasApiIntegration && montoTotal > 0) {
+                      const trackerKey = `prosthesis-${sIndex}`;
+                      return (
+                        <MonthlyPaymentTracker
+                          key={trackerKey}
+                          ref={getRefCallback(trackerKey)}
+                          serviceId={serviceId}
+                          serviceName={serviceName}
+                          consultationId={consultationId!}
+                          patientId={typeof patientId === 'string' ? parseInt(patientId) : patientId!}
+                          branchId={branchId!}
+                          dentistId={dentistId!}
+                          readOnly={readOnly}
+                          compact
+                        />
+                      );
+                    }
+
+                    return (
+                      <CompactItem
+                        key={`prosthesis-${sIndex}`}
+                        itemKey={`prosthesis-${sIndex}`}
+                        label={serviceName}
+                        price={montoTotal}
+                      />
+                    );
+                  })}
                 </CompactSection>
               )}
             </div>

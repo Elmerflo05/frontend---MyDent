@@ -24,6 +24,7 @@ import { incomePaymentsApi, type PendingDebt, type PatientBalance } from '@/serv
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import UploadVoucherModal from '@/components/patient/UploadVoucherModal';
+import AdditionalServicesAccountStatement from '@/components/additionalServices/AdditionalServicesAccountStatement';
 
 const PatientBilling = () => {
   const { user } = useAuthStore();
@@ -295,6 +296,16 @@ const PatientBilling = () => {
             </div>
           )}
         </div>
+
+        {/* Estado de cuenta — servicios adicionales (ortodoncia / implantes / prótesis) */}
+        {user?.patient_id && (
+          <div className="mt-4">
+            <AdditionalServicesAccountStatement
+              patientId={Number(user.patient_id)}
+              emptyMessage="No tienes tratamientos extendidos (ortodoncia, implantes o prótesis) registrados todavía."
+            />
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">

@@ -1,32 +1,37 @@
 import type { DiagnosticCondition, DefinitiveDiagnosticCondition } from '@/types';
 
 /**
+ * Fuente única de verdad para el precio efectivo de una condición del diagnóstico definitivo.
+ * Regla: procedure_price (precio del procedimiento seleccionado) prevalece sobre price (precio base).
+ * Admite objetos en cualquier forma conocida del pipeline (plano, anidado en .definitive, o desde API).
+ */
+export const getEffectiveProcedurePrice = (cond: any): number => {
+  if (!cond) return 0;
+
+  const candidates = [
+    cond.procedure_price,
+    cond.definitive?.procedure_price,
+    cond.price,
+    cond.definitive?.price,
+    cond.condition_price_base
+  ];
+
+  for (const value of candidates) {
+    if (value === undefined || value === null) continue;
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
+  }
+
+  return 0;
+};
+
+/**
  * Calcula el precio total de un array de condiciones
  */
 export const calculateTotalPrice = (
   conditions: DiagnosticCondition[] | DefinitiveDiagnosticCondition[]
 ): number => {
-  return conditions.reduce((sum, condition) => {
-    if ('price' in condition) {
-      const price = Number(condition.price) || 0;
-      return sum + price;
-    }
-    if ('definitive' in condition) {
-      // Priorizar el precio del procedimiento seleccionado si existe
-      const conditionAny = condition as any;
-      const procedurePrice = conditionAny.procedure_price;
-
-      // Si hay un procedimiento seleccionado con precio, usar ese precio
-      if (procedurePrice !== undefined && procedurePrice !== null) {
-        return sum + (Number(procedurePrice) || 0);
-      }
-
-      // Si no hay procedimiento, usar el precio de la condición
-      const price = Number(condition.definitive.price) || 0;
-      return sum + price;
-    }
-    return sum;
-  }, 0);
+  return conditions.reduce((sum, condition) => sum + getEffectiveProcedurePrice(condition), 0);
 };
 
 /**

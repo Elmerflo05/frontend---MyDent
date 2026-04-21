@@ -57,19 +57,19 @@ export const QUADRANT_POSITIONS = {
       cuadrante2: { x: 730, y: 49 }    // Superior izquierdo
     },
     inferior: {
-      cuadrante4: { x: 120, y: 850 },  // Inferior derecho
-      cuadrante3: { x: 730, y: 850 }   // Inferior izquierdo
+      cuadrante4: { x: 120, y: 767 },  // Inferior derecho
+      cuadrante3: { x: 730, y: 767 }   // Inferior izquierdo
     }
   },
   // Niños (deciduos)
   ninos: {
     superior: {
-      cuadrante5: { x: 434, y: 385 },  // Superior derecho
-      cuadrante6: { x: 730, y: 385 }   // Superior izquierdo
+      cuadrante5: { x: 434, y: 344 },  // Superior derecho
+      cuadrante6: { x: 730, y: 344 }   // Superior izquierdo
     },
     inferior: {
-      cuadrante8: { x: 434, y: 525 },  // Inferior derecho
-      cuadrante7: { x: 730, y: 525 }   // Inferior izquierdo
+      cuadrante8: { x: 434, y: 459 },  // Inferior derecho
+      cuadrante7: { x: 730, y: 459 }   // Inferior izquierdo
     }
   }
 };
@@ -84,18 +84,18 @@ export const VERTICAL_OFFSETS = {
       labels: -73,        // Entre anotaciones y dientes
     },
     inferior: {
-      annotations: 1053,  // Debajo de los dientes inferiores
-      labels: 1113,       // Más abajo que annotations
+      annotations: 970,   // Debajo de los dientes inferiores
+      labels: 1030,       // Más abajo que annotations
     }
   },
   ninos: {
     superior: {
-      annotations: 175,   // Arriba de dientes de niños superiores
-      labels: 235,        // Más abajo que annotations
+      annotations: 134,   // Arriba de dientes de niños superiores
+      labels: 194,        // Más abajo que annotations
     },
     inferior: {
-      annotations: 735,   // Debajo de dientes de niños inferiores
-      labels: 795,        // Más abajo que annotations
+      annotations: 669,   // Debajo de dientes de niños inferiores
+      labels: 729,        // Más abajo que annotations
     }
   }
 };
@@ -106,9 +106,9 @@ export const VERTICAL_OFFSETS = {
  */
 export const ODONTOGRAM_VIEWBOX = {
   x: 0,
-  y: -200,       // Incluye espacio para anotaciones superiores (y=-133)
+  y: -143,       // Padding mínimo encima de anotaciones superiores (y=-133)
   width: 1390,   // Reducido: elimina espacio central entre cuadrantes derecho/izquierdo
-  height: 1400   // Aumentado para incluir rango completo desde -200 hasta 1200
+  height: 1200   // Reducido: bloques compactados, elimina padding superior/inferior
 };
 
 /**

@@ -767,9 +767,9 @@ const Odontogram = ({
             preserveAspectRatio="xMidYMid meet"
             style={{
               width: 'auto',
-              height: isFullscreen ? 'calc(100vh - 120px)' : 'min(156vh, 1460px)',
+              height: isFullscreen ? 'calc(100vh - 120px)' : 'min(134vh, 1252px)',
               maxWidth: '100%',
-              maxHeight: isFullscreen ? 'calc(100vh - 120px)' : 'min(156vh, 1460px)'
+              maxHeight: isFullscreen ? 'calc(100vh - 120px)' : 'min(134vh, 1252px)'
             }}
           >
           {/* ==================== SUPERIORES ==================== */}
@@ -794,10 +794,10 @@ const Odontogram = ({
           ))}
 
           {/* Línea vertical */}
-          <line x1="695" y1="-21" x2="695" y2="1120" stroke="#cbd5e1" strokeWidth="2" strokeDasharray="5,5" />
+          <line x1="695" y1="-21" x2="695" y2="1037" stroke="#cbd5e1" strokeWidth="2" strokeDasharray="5,5" />
 
           {/* Línea horizontal */}
-          <line x1="70" y1="483" x2="1320" y2="483" stroke="#cbd5e1" strokeWidth="2" strokeDasharray="5,5" />
+          <line x1="70" y1="424" x2="1320" y2="424" stroke="#cbd5e1" strokeWidth="2" strokeDasharray="5,5" />
 
           {/* ==================== INFERIORES ==================== */}
 

@@ -19,6 +19,7 @@ import type {
   IntegralConsultation,
 } from '../services/patientApiService';
 import { PatientModificationHistory } from '../components/patients/PatientModificationHistory';
+import AdditionalServicesAccountStatement from '@/components/additionalServices/AdditionalServicesAccountStatement';
 import Odontogram from '@/components/odontogram/Odontogram';
 import {
   Tomografia3DSection,
@@ -1789,6 +1790,16 @@ const PatientIntegralHistory = () => {
                 </div>
                 <p className="text-gray-500 text-sm">Este paciente no tiene consultas de atencion integral registradas.</p>
               </motion.div>
+            )}
+
+            {!loading && !error && patientId && (
+              <div className="mb-6">
+                <AdditionalServicesAccountStatement
+                  patientId={Number(patientId)}
+                  title="Estado de cuenta — Tratamientos extendidos del paciente"
+                  emptyMessage="Este paciente no tiene servicios adicionales (ortodoncia, implantes o prótesis) registrados."
+                />
+              </div>
             )}
 
             {!loading && !error && consultations.length > 0 && (

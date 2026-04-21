@@ -331,9 +331,14 @@ class AuthApiService {
    */
   async changePassword(data: ChangePasswordData): Promise<ChangePasswordResponse> {
     try {
+      const backendData = {
+        current_password: data.currentPassword,
+        new_password: data.newPassword
+      };
+
       const response = await httpClient.post<ChangePasswordResponse>(
         '/auth/change-password',
-        data,
+        backendData,
         { requiresAuth: true }
       );
 

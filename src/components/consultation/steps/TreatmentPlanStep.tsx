@@ -18,6 +18,7 @@ import { useTreatmentManagement } from '@/components/consultation/hooks/useTreat
 import { usePaymentPlans } from '@/components/consultation/hooks/usePaymentPlans';
 import { useAdditionalServices } from '@/components/consultation/hooks/useAdditionalServices';
 import { groupConditionsByTooth, formatCurrency } from '@/components/consultation/utils/treatmentPlanHelpers';
+import { getEffectiveProcedurePrice } from '@/components/consultation/final-diagnosis';
 import useOdontogramConfigStore from '@/store/odontogramConfigStore';
 import { TreatmentSummary } from './treatment-plan/TreatmentSummary';
 import { TreatmentForm } from './treatment-plan/TreatmentForm';
@@ -461,15 +462,15 @@ const TreatmentPlanStepComponent = ({
   const totalTeeth = Object.keys(groupedConditionsByTooth).length;
 
   // ===== CÁLCULO DE TOTALES =====
-  // Total del diagnóstico definitivo (suma de procedure_price cuando existe, sino price)
+  // Total del diagnóstico definitivo (precio efectivo del procedimiento seleccionado)
   const definitiveConditionsTotal = useMemo(() => {
-    return Object.values(groupedConditionsByTooth).reduce((total, conditions) => {
-      return total + conditions.reduce((sum, cond) => {
-        // Priorizar procedure_price (precio del procedimiento asignado)
-        const price = Number(cond.procedure_price) || Number(cond.price) || 0;
-        return sum + price;
-      }, 0);
-    }, 0);
+    return Object.values(groupedConditionsByTooth).reduce(
+      (total, conditions) => total + conditions.reduce(
+        (sum, cond) => sum + getEffectiveProcedurePrice(cond),
+        0
+      ),
+      0
+    );
   }, [groupedConditionsByTooth]);
 
   // Total de tratamientos aplicados

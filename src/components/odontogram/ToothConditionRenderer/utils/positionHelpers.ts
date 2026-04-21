@@ -15,18 +15,18 @@ export const getToothPosition = (toothNumber: string): { x: number; y: number; i
         cuadrante2: { x: 730, y: 49 }
       },
       inferior: {
-        cuadrante4: { x: 120, y: 850 },
-        cuadrante3: { x: 730, y: 850 }
+        cuadrante4: { x: 120, y: 767 },
+        cuadrante3: { x: 730, y: 767 }
       }
     },
     ninos: {
       superior: {
-        cuadrante5: { x: 434, y: 385 },
-        cuadrante6: { x: 730, y: 385 }
+        cuadrante5: { x: 434, y: 344 },
+        cuadrante6: { x: 730, y: 344 }
       },
       inferior: {
-        cuadrante8: { x: 434, y: 525 },
-        cuadrante7: { x: 730, y: 525 }
+        cuadrante8: { x: 434, y: 459 },
+        cuadrante7: { x: 730, y: 459 }
       }
     }
   };

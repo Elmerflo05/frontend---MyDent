@@ -21,7 +21,6 @@ interface AuthActions {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   updateProfile: (updates: Partial<User['profile']>) => Promise<boolean>;
-  changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
   clearError: () => void;
   setLoading: (loading: boolean) => void;
   hasRole: (role: string | string[]) => boolean;
@@ -165,28 +164,6 @@ export const useApiAuthStore = create<AuthStore>()(
           return true;
         } catch (error) {
           logger.error('ApiAuthStore: Error al actualizar perfil', error);
-          set({
-            error: error instanceof Error ? error.message : 'Error de conexión',
-            isLoading: false
-          });
-          return false;
-        }
-      },
-
-      changePassword: async (currentPassword: string, newPassword: string): Promise<boolean> => {
-        logger.auth('ApiAuthStore: Change password iniciado');
-        set({ isLoading: true, error: null });
-
-        try {
-          // TODO: Implementar endpoint de cambio de contraseña en el backend
-          logger.warn('ApiAuthStore: Cambio de contraseña no implementado en API');
-          set({
-            error: 'Funcionalidad no disponible por el momento',
-            isLoading: false
-          });
-          return false;
-        } catch (error) {
-          logger.error('ApiAuthStore: Error al cambiar contraseña', error);
           set({
             error: error instanceof Error ? error.message : 'Error de conexión',
             isLoading: false

@@ -187,26 +187,6 @@ class UsersApiService {
   }
 
   /**
-   * Cambia la contraseña de un usuario
-   */
-  async changePassword(userId: number, currentPassword: string, newPassword: string): Promise<ApiResponse> {
-    try {
-      const response = await httpClient.put(`/users/${userId}/password`, {
-        current_password: currentPassword,
-        new_password: newPassword
-      });
-
-      if (!response.success) {
-        throw new Error(response.message || 'Error al cambiar contraseña');
-      }
-
-      return response;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  /**
    * Elimina un usuario
    */
   async deleteUser(userId: number): Promise<ApiResponse> {

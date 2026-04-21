@@ -41,6 +41,7 @@ import type {
 } from '@/services/api/consultationsApi';
 import { procedureIncomeApi, type ProcedureIncomeData } from '@/services/api/procedureIncomeApi';
 import { IncomeHistoryModal } from './IncomeHistoryModal';
+import { getEffectiveProcedurePrice } from '@/components/consultation/final-diagnosis';
 
 interface TreatmentPlanReferenceProps {
   // Nombre del plan
@@ -402,7 +403,7 @@ export const TreatmentPlanReference = ({
                 {expandedSections.procedures && (
                   <div className="border-t border-blue-100 divide-y divide-gray-100 max-h-48 overflow-y-auto">
                     {definitiveDiagnosisConditions.map((condition, index) => {
-                      const price = Number(condition.price || condition.condition_price_base || 0);
+                      const price = getEffectiveProcedurePrice(condition);
                       const conditionName = condition.condition_label || condition.condition_name || 'Procedimiento';
                       const toothNumber = condition.tooth_number || '-';
                       const surfaces = condition.surfaces_array || [];

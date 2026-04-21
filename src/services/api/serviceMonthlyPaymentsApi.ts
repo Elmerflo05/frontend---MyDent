@@ -1,10 +1,13 @@
 /**
  * API Service: serviceMonthlyPaymentsApi.ts
- * Servicio para pagos mensuales recurrentes de servicios adicionales
- * (ortodoncia e implantes)
+ * Servicio para pagos fraccionados de servicios adicionales
+ * (ortodoncia, implantes y prótesis)
  */
 
 import httpClient, { ApiResponse } from './httpClient';
+
+export type AdditionalServiceType = 'orthodontic' | 'implant' | 'prosthesis';
+export type ServicePaymentType = 'initial' | 'monthly';
 
 // ============================================================================
 // TIPOS
@@ -19,7 +22,7 @@ export interface ServiceMonthlyPaymentData {
   payment_number: number;
   payment_amount: string | number;
   payment_date: string;
-  payment_type: 'initial' | 'monthly';
+  payment_type: ServicePaymentType;
   registered_by_dentist_id: number;
   income_id: number | null;
   clinical_notes: string | null;
@@ -29,7 +32,7 @@ export interface ServiceMonthlyPaymentData {
   dentist_name?: string;
   dentist_cop?: string;
   service_name?: string;
-  service_type?: string;
+  service_type?: AdditionalServiceType;
   patient_name?: string;
   patient_dni?: string;
   branch_name?: string;
@@ -41,7 +44,7 @@ export interface CreatePaymentData {
   patient_id: number;
   branch_id: number;
   payment_amount: number;
-  payment_type?: 'initial' | 'monthly';
+  payment_type?: ServicePaymentType;
   registered_by_dentist_id: number;
   clinical_notes?: string;
   service_name?: string;
@@ -51,7 +54,7 @@ export interface ServicePaymentStatus {
   service: {
     consultation_additional_service_id: number;
     consultation_treatment_plan_id: number;
-    service_type: string;
+    service_type: AdditionalServiceType;
     service_name: string;
     modality: string | null;
     original_monto_total: string | number;
@@ -78,9 +81,15 @@ export interface ServicePaymentStatus {
     all: ServiceMonthlyPaymentData[];
   };
   summary: {
+    expected_total: number;
+    initial_expected: number;
+    monthly_expected: number;
     initial_paid: boolean;
     monthly_count: number;
     total_paid: number;
+    remaining_balance: number;
+    progress_percent: number;
+    is_fully_paid: boolean;
     service_status: 'pending' | 'in_progress' | 'completed';
     is_completed: boolean;
   };
@@ -114,12 +123,55 @@ export interface FinalizeServiceData {
   notes?: string;
 }
 
+export interface PatientAccountStatementService {
+  consultation_additional_service_id: number;
+  consultation_treatment_plan_id: number;
+  service_type: AdditionalServiceType;
+  service_name: string;
+  modality: string | null;
+  service_status: 'pending' | 'in_progress' | 'completed';
+  initial_payment_completed: boolean;
+  initial_payment_date: string | null;
+  monthly_payments_count: number;
+  service_completed_date: string | null;
+  expected_total: number;
+  initial_expected: number;
+  monthly_expected: number;
+  total_paid: number;
+  remaining_balance: number;
+  progress_percent: number;
+  is_fully_paid: boolean;
+  is_completed: boolean;
+  last_payment_date: string | null;
+  consultation_id: number;
+  patient_id: number;
+  branch_id: number;
+  branch_name: string;
+  consultation_date: string | null;
+  payments: ServiceMonthlyPaymentData[];
+}
+
+export interface PatientAccountStatementAggregate {
+  expected_total: number;
+  total_paid: number;
+  remaining_balance: number;
+  services_count: number;
+  in_progress_count: number;
+  completed_count: number;
+  pending_count: number;
+}
+
+export interface PatientAccountStatement {
+  services: PatientAccountStatementService[];
+  aggregate: PatientAccountStatementAggregate;
+}
+
 export interface PaymentsFilters {
   patient_id?: number;
   dentist_id?: number;
   branch_id?: number;
-  service_type?: 'orthodontic' | 'implant';
-  payment_type?: 'initial' | 'monthly';
+  service_type?: AdditionalServiceType;
+  payment_type?: ServicePaymentType;
   date_from?: string;
   date_to?: string;
   limit?: number;
@@ -208,6 +260,19 @@ export const getPaymentsByPatient = async (
 };
 
 /**
+ * Estado de cuenta consolidado del paciente:
+ * servicios adicionales con presupuesto, saldo, progreso y pagos.
+ * Usado por los roles paciente, admin, SA y recepción.
+ */
+export const getPatientAccountStatement = async (
+  patientId: number
+): Promise<ApiResponse<PatientAccountStatement>> => {
+  return httpClient.get<PatientAccountStatement>(
+    `/service-monthly-payments/patient/${patientId}/statement`
+  );
+};
+
+/**
  * Obtener pagos de un dentista (para comisiones)
  */
 export const getPaymentsByDentist = async (
@@ -260,6 +325,7 @@ export const serviceMonthlyPaymentsApi = {
   getServicePaymentStatus,
   getPaymentCount,
   getPaymentsByPatient,
+  getPatientAccountStatement,
   getPaymentsByDentist,
   finalizeService,
   deletePayment,

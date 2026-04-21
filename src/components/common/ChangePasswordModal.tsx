@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Eye, EyeOff, Lock, AlertCircle, CheckCircle } from 'lucide-react';
-import { usersApi } from '@/services/api/usersApi';
-import { useAuthStore } from '@/store/authStore';
+import { authApi } from '@/services/api/authApi';
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -10,7 +9,6 @@ interface ChangePasswordModalProps {
 }
 
 export const ChangePasswordModal = ({ isOpen, onClose }: ChangePasswordModalProps) => {
-  const { user } = useAuthStore();
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -66,7 +64,7 @@ export const ChangePasswordModal = ({ isOpen, onClose }: ChangePasswordModalProp
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm() || !user) {
+    if (!validateForm()) {
       return;
     }
 
@@ -74,33 +72,32 @@ export const ChangePasswordModal = ({ isOpen, onClose }: ChangePasswordModalProp
     setErrors({ ...errors, general: '' });
 
     try {
-      // Cambiar contraseña usando la API
-      const userId = parseInt(user.id);
-      await usersApi.changePassword(userId, formData.currentPassword, formData.newPassword);
+      const response = await authApi.changePassword({
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword
+      });
 
-      // Show success message
+      if (!response.success) {
+        const msg = response.message || '';
+        if (msg.toLowerCase().includes('incorrecta')) {
+          setErrors({ ...errors, currentPassword: msg });
+        } else {
+          setErrors({ ...errors, general: msg || 'Ocurrió un error al cambiar la contraseña. Por favor, intenta de nuevo.' });
+        }
+        return;
+      }
+
       setSuccess(true);
-
-      // Reset form
       setFormData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
 
-      // Close modal after 2 seconds
       setTimeout(() => {
         setSuccess(false);
         onClose();
       }, 2000);
-
-    } catch (error: any) {
-      // Verificar si es error de contraseña incorrecta
-      if (error?.message?.includes('incorrecta') || error?.response?.status === 401) {
-        setErrors({ ...errors, currentPassword: 'La contraseña actual es incorrecta' });
-      } else {
-        setErrors({ ...errors, general: 'Ocurrió un error al cambiar la contraseña. Por favor, intenta de nuevo.' });
-      }
     } finally {
       setLoading(false);
     }

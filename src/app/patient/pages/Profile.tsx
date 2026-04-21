@@ -8,10 +8,13 @@ import {
   Heart,
   AlertTriangle,
   CreditCard,
-  Loader2
+  Loader2,
+  Lock,
+  KeyRound
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { patientPortalApi, PatientProfile as PatientProfileType, MedicalBackground } from '@/services/api/patientPortalApi';
+import { ChangePasswordModal } from '@/components/common/ChangePasswordModal';
 
 interface ProfileData {
   dni: string;
@@ -29,6 +32,7 @@ interface ProfileData {
 
 const PatientProfile = () => {
   const [isLoading, setIsLoading] = useState(true);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [profileData, setProfileData] = useState<ProfileData>({
     dni: '',
     firstName: '',
@@ -273,7 +277,43 @@ const PatientProfile = () => {
             </div>
           )}
         </div>
+
+        {/* Seguridad */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mt-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
+              <Lock className="w-6 h-6 text-teal-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Seguridad</h2>
+              <p className="text-sm text-gray-600">Gestiona el acceso a tu cuenta</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-gray-200 flex-shrink-0">
+                <KeyRound className="w-5 h-5 text-gray-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-900">Contraseña</p>
+                <p className="text-xs text-gray-500">Cámbiala periódicamente para mantener tu cuenta protegida</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowPasswordModal(true)}
+              className="flex-shrink-0 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              Cambiar contraseña
+            </button>
+          </div>
+        </div>
       </motion.div>
+
+      <ChangePasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+      />
     </div>
   );
 };

@@ -8,6 +8,7 @@ import { procedureHistoryApi, type ProcedureHistoryData } from '@/services/api/p
 import { procedureIncomeApi, type ProcedureIncomeData } from '@/services/api/procedureIncomeApi';
 import { evolutionOdontogramApi, type EvolutionOdontogramData } from '@/services/api/evolutionOdontogramApi';
 import { formatDateToYMD } from '@/utils/dateUtils';
+import { getEffectiveProcedurePrice } from '@/components/consultation/final-diagnosis';
 import type { TreatmentHistoryEntry } from '@/types';
 
 /**
@@ -18,11 +19,15 @@ export const calculateTreatmentBudget = (
   diagnosticExams: any[],
   customExams: any[]
 ) => {
-  // Calcular total de procedimientos del odontograma
+  // Calcular total de procedimientos del odontograma.
+  // Precio efectivo: procedure_price → price → condition_price_base. Si ninguno existe,
+  // se usa el precio del catálogo oficial de la condición (sin fallback hardcoded).
   const odontogramTotal = odontogramConditions.reduce((total, condition) => {
+    const effective = getEffectiveProcedurePrice(condition);
+    if (effective > 0) return total + effective;
+
     const officialCondition = OFFICIAL_DENTAL_CONDITIONS.find(c => c.id === condition.conditionId);
-    const price = officialCondition?.price || condition.price || 100;
-    return total + price;
+    return total + Number(officialCondition?.price || 0);
   }, 0);
 
   // Calcular total de examenes de diagnostico

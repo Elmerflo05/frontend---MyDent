@@ -38,6 +38,9 @@ import {
 import { useTomografia3DPricing } from '@/app/admin/pages/laboratory-services/hooks/useTomografia3DPricing';
 import { useRadiografiasPricing } from '@/app/admin/pages/laboratory-services/hooks/useRadiografiasPricing';
 
+// Fuente única de verdad para armar el desglose (compartido con técnico y admin)
+import { buildBreakdownFromFormData } from '@/utils/pricing/breakdownBuilder';
+
 interface DiagnosticPlanStepProps {
   currentRecord: any;
   setCurrentRecord: (record: any) => void;
@@ -107,8 +110,9 @@ const hasRadiografiasSelection = (data: RadiografiasFormData): boolean => {
 };
 
 /**
- * Calcula los datos de precios basándose en la selección
- * CORREGIDO: Usa los campos booleanos directos del formulario
+ * Calcula los datos de precios basándose en la selección usando el util compartido
+ * `buildBreakdownFromFormData` — misma lógica que emplean SetPriceModal y RequestDetailsModal.
+ * Guarda el breakdown en formato canónico (category, itemName, itemKey, basePrice, quantity, subtotal).
  */
 const calculatePricingData = (
   tomografia3D: Tomografia3DFormData,
@@ -116,93 +120,20 @@ const calculatePricingData = (
   tomografiaPricing: any,
   radiografiasPricing: any
 ) => {
-  const breakdown: Array<{ service: string; price: number }> = [];
-  let subtotal = 0;
-
-  // Helper para agregar precio
-  const addPrice = (service: string, price: number | undefined) => {
-    if (price && price > 0) {
-      breakdown.push({ service, price });
-      subtotal += price;
-    }
-  };
-
-  // === TOMOGRAFÍA 3D ===
-  if (tomografiaPricing) {
-    // Tipo de Entrega
-    if (tomografia3D.conInforme) addPrice('Tomografía 3D con Informe', tomografiaPricing.conInforme);
-    if (tomografia3D.sinInforme) addPrice('Tomografía 3D sin Informe', tomografiaPricing.sinInforme);
-    if (tomografia3D.dicom) addPrice('DICOM', tomografiaPricing.dicom);
-    if (tomografia3D.soloUsb) addPrice('Solo USB', tomografiaPricing.soloUsb);
-
-    // Campo Pequeño
-    if (tomografia3D.endodoncia) addPrice('Endodoncia', tomografiaPricing.endodoncia);
-    if (tomografia3D.fracturaRadicular) addPrice('Fractura Radicular', tomografiaPricing.fracturaRadicular);
-    if (tomografia3D.anatomiaEndodontica) addPrice('Anatomía Endodóntica', tomografiaPricing.anatomiaEndodontica);
-
-    // Campo Mediano
-    if (tomografia3D.localizacionDiente) addPrice('Localización Diente', tomografiaPricing.localizacionDiente);
-    if (tomografia3D.implantes) addPrice('Implantes', tomografiaPricing.implantes);
-    if (tomografia3D.maxilarSuperior) addPrice('Maxilar Superior', tomografiaPricing.maxilarSuperior);
-
-    // Campo Mediano/Grande
-    if (tomografia3D.viaAerea) addPrice('Vía Aérea', tomografiaPricing.viaAerea);
-    if (tomografia3D.ortognatica) addPrice('Ortognática', tomografiaPricing.ortognatica);
-
-    // Ortodoncia
-    if (tomografia3D.marpe) addPrice('MARPE', tomografiaPricing.marpe);
-    if (tomografia3D.miniImplantes) addPrice('Mini Implantes', tomografiaPricing.miniImplantes);
-
-    // Otras opciones
-    if (tomografia3D.atm) addPrice('ATM (Tomografía)', tomografiaPricing.atm);
-    if (tomografia3D.macizoFacial) addPrice('Macizo Facial', tomografiaPricing.macizoFacial);
-  }
-
-  // === RADIOGRAFÍAS ===
-  if (radiografiasPricing) {
-    // Panorámica y Cefalométrica
-    if (radiografias.extraoralPanoramica) addPrice('Radiografía Panorámica', radiografiasPricing.panoramica);
-    if (radiografias.extraoralCefalometrica) addPrice('Cefalométrica Lateral', radiografiasPricing.cefalometricaLateral);
-
-    // Periapicales (contar cantidad)
-    const periapicalesCount = (radiografias.periapicalFisico?.length || 0) + (radiografias.periapicalDigital?.length || 0);
-    if (periapicalesCount > 0 && radiografiasPricing.periapicales) {
-      addPrice(`Periapicales x${periapicalesCount}`, radiografiasPricing.periapicales * periapicalesCount);
-    }
-
-    // Bitewings
-    const bitewingsCount = [
-      radiografias.bitewingMolaresDerecha,
-      radiografias.bitewingMolaresIzquierda,
-      radiografias.bitewingPremolaresDerecha,
-      radiografias.bitewingPremolaresIzquierda
-    ].filter(Boolean).length;
-    if (bitewingsCount > 0 && radiografiasPricing.biteWings) {
-      addPrice(`Bite Wings x${bitewingsCount}`, radiografiasPricing.biteWings * bitewingsCount);
-    }
-
-    // ATM
-    if (radiografias.extraoralAtmAbierta || radiografias.extraoralAtmCerrada) {
-      addPrice('Radiografía ATM', radiografiasPricing.atm);
-    }
-
-    // Carpal
-    if (radiografias.extraoralCarpal) addPrice('Carpograma', radiografiasPricing.carpograma);
-
-    // Oclusales
-    if (radiografias.oclusalSuperiores) addPrice('Oclusal Superiores', radiografiasPricing.oclusalSuperiores || 25);
-    if (radiografias.oclusalInferiores) addPrice('Oclusal Inferiores', radiografiasPricing.oclusalInferiores || 25);
-
-    // Seriada
-    if (radiografias.seriada) addPrice('Seriada', radiografiasPricing.seriada || 80);
-
-    // Paquete Ortodoncia
-    if (radiografias.ortodonciaPaquete && radiografias.ortodonciaPaquete > 0) {
-      const paquetePrice = radiografiasPricing[`paquete${radiografias.ortodonciaPaquete}`] || (radiografias.ortodonciaPaquete * 50);
-      addPrice(`Paquete Ortodoncia ${radiografias.ortodonciaPaquete}`, paquetePrice);
-    }
-  }
-
+  const items = buildBreakdownFromFormData(
+    { tomografia3D, radiografias },
+    tomografiaPricing,
+    radiografiasPricing
+  );
+  const breakdown = items.map(it => ({
+    category: it.category,
+    itemName: it.itemName,
+    itemKey: it.itemKey,
+    basePrice: it.price,
+    quantity: it.quantity,
+    subtotal: it.price * (it.quantity || 1)
+  }));
+  const subtotal = breakdown.reduce((s, it) => s + (it.subtotal || 0), 0);
   return {
     breakdown,
     subtotal,

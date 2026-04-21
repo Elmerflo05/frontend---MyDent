@@ -39,6 +39,7 @@ import { additionalServicesApi } from '@/services/api/additionalServicesApi';
 import { useAuth } from '@/hooks/useAuth';
 import type { Patient, Appointment } from '@/types';
 import VoucherVerificationPanel from '../components/payments/VoucherVerificationPanel';
+import AdditionalServicesAccountStatement from '@/components/additionalServices/AdditionalServicesAccountStatement';
 
 interface Payment {
   id: string;
@@ -618,6 +619,20 @@ const Payments = () => {
                                   )}
                                 </td>
                               </tr>
+
+                              {/* Estado de cuenta — servicios adicionales del paciente */}
+                              {isExpanded && (
+                                <tr className="bg-white border-l-4 border-l-blue-300">
+                                  <td colSpan={6} className="px-6 py-3">
+                                    <AdditionalServicesAccountStatement
+                                      patientId={patient.patient_id}
+                                      title={`Tratamientos extendidos — ${patient.patient_name}`}
+                                      emptyMessage="Este paciente no tiene ortodoncia, implantes ni prótesis activos."
+                                      compact
+                                    />
+                                  </td>
+                                </tr>
+                              )}
 
                               {/* Filas de items expandidos - agrupados por batch */}
                               {isExpanded && patientDebts.length > 0 && (

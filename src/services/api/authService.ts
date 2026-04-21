@@ -3,7 +3,7 @@
  * NUEVO servicio que reemplaza el uso de IndexedDB por llamadas HTTP reales al backend
  */
 
-import { authApi, type UserData, type LoginCredentials, type AuthApiResponse, type RegisterPatientData, type ChangePasswordData, type ChangeExpiredPasswordData } from './authApi';
+import { authApi, type UserData, type LoginCredentials, type AuthApiResponse, type RegisterPatientData } from './authApi';
 import type { User } from '@/types';
 
 export interface AuthResponse {
@@ -414,21 +414,6 @@ export class ApiAuthService {
   static hasPermission(permission: string): boolean {
     const permissions = this.getPermissions();
     return permissions.includes(permission);
-  }
-
-  /**
-   * Cambia la contraseña del usuario autenticado
-   */
-  static async changePassword(currentPassword: string, newPassword: string): Promise<ChangePasswordResponse> {
-    try {
-      const response = await authApi.changePassword({ currentPassword, newPassword });
-      return response;
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Error al cambiar contraseña',
-      };
-    }
   }
 
   /**

@@ -9,6 +9,7 @@ import { radiographyApi } from '@/services/api/radiographyApi';
 import { appointmentsApi } from '@/services/api/appointmentsApi';
 import useOdontogramConfigStore from '@/store/odontogramConfigStore';
 import { formatDateToYMD } from '@/utils/dateUtils';
+import { getEffectiveProcedurePrice } from '@/components/consultation/final-diagnosis';
 
 /**
  * Servicio para manejar operaciones de consulta de pacientes
@@ -929,15 +930,10 @@ const calculateDefinitiveConditionsTotal = (currentRecord: any): number => {
     return 0;
   }
 
-  return definitiveConditions.reduce((total: number, cond: any) => {
-    // Priorizar procedure_price (precio del procedimiento asignado en Paso 6)
-    // Si no hay procedimiento asignado, usar el precio base de la condición
-    const price = Number(cond.procedure_price) ||
-                  Number(cond.definitive?.procedure_price) ||
-                  Number(cond.definitive?.price) ||
-                  Number(cond.price) || 0;
-    return total + price;
-  }, 0);
+  return definitiveConditions.reduce(
+    (total: number, cond: any) => total + getEffectiveProcedurePrice(cond),
+    0
+  );
 };
 
 /**

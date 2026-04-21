@@ -6,6 +6,7 @@ import { consultationsApi, ConditionProcedureData } from '@/services/api/consult
 import { formatCurrency } from '../utils/treatmentPlanHelpers';
 import { getPriceForPlan } from '@/constants/healthPlanCodes';
 import { getConditionProcedurePriceForPatient } from '@/services/pricing/consultationPricingService';
+import { getEffectiveProcedurePrice } from './final-diagnosis-helpers';
 
 interface DefinitiveConditionCardProps {
   condition: DefinitiveDiagnosticCondition;
@@ -56,18 +57,16 @@ export const DefinitiveConditionCard = ({
   // Precio guardado del procedimiento (puede ser editado)
   const savedProcedurePrice = (condition as any).procedure_price;
 
-  // Encontrar el procedimiento seleccionado para obtener su precio base
-  const selectedProcData = selectedProcId
-    ? proceduresData.find(p => p.procedure_id === selectedProcId)
-    : null;
-  const baseProcPrice = selectedProcData
-    ? getProcedurePrice(selectedProcData, patientHealthPlan)
-    : null;
-
-  // El precio a mostrar es el guardado (si existe) o el base
-  const displayPrice = savedProcedurePrice !== null && savedProcedurePrice !== undefined
-    ? savedProcedurePrice
-    : baseProcPrice;
+  // Precio efectivo: fuente única de verdad (procedure_price si existe, fallback a price base).
+  // Usado tanto para mostrar como para edición inline.
+  const displayPrice: number | null = (() => {
+    const resolved = getEffectiveProcedurePrice(condition);
+    if (resolved > 0) return resolved;
+    const selectedProcData = selectedProcId
+      ? proceduresData.find(p => p.procedure_id === selectedProcId)
+      : null;
+    return selectedProcData ? getProcedurePrice(selectedProcData, patientHealthPlan) : null;
+  })();
 
   // Sincronizar editedPrice cuando cambia el precio mostrado
   useEffect(() => {
@@ -306,16 +305,13 @@ export const DefinitiveConditionCard = ({
                 )}
               </div>
 
-              {/* Metadatos: CIE-10, Precio, Superficie */}
+              {/* Metadatos: CIE-10, Superficie (el precio se muestra en la zona del procedimiento) */}
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 {condition.definitive.cie10 && (
                   <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[11px] font-medium rounded">
                     CIE-10: {condition.definitive.cie10}
                   </span>
                 )}
-                <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[11px] font-semibold rounded">
-                  {formatCurrency(condition.definitive.price)}
-                </span>
                 {((condition as any).surfaces?.length > 0 || (condition as any).definitive?.surfaces?.length > 0) && (
                   <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[11px] font-medium rounded">
                     Sup: {((condition as any).surfaces || (condition as any).definitive?.surfaces || []).join(', ')}
