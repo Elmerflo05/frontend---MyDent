@@ -32,6 +32,8 @@ import type { Patient, SignedConsent, Appointment, MedicalRecord, TreatmentPlan,
 import { UploadContractModal } from '@/components/contracts/UploadContractModal';
 import { PaymentHistoryModal } from '@/components/patients/PaymentHistoryModal';
 import { incomePaymentsApi } from '@/services/api/incomePaymentsApi';
+import { patientContractsApi } from '@/services/api/patientContractsApi';
+import { consentsApi } from '@/services/api/consentsApi';
 
 // Import services and utils - INTEGRACIÓN CON API REAL
 import { PatientApiService } from '../services/patientApiService';
@@ -234,6 +236,32 @@ const PatientsPage = () => {
       setPatientContracts(contracts);
     } catch (error) {
       toast.error('Error al cargar los contratos del paciente');
+    }
+  };
+
+  const handleDeleteContract = async (contractId: string) => {
+    if (!selectedPatient) return;
+    try {
+      await patientContractsApi.deletePatientContract(parseInt(contractId));
+      toast.success('Contrato eliminado exitosamente');
+      await loadPatientContracts(selectedPatient.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al eliminar el contrato';
+      toast.error(message);
+      throw error;
+    }
+  };
+
+  const handleDeleteConsent = async (consentId: string) => {
+    if (!selectedPatient) return;
+    try {
+      await consentsApi.deleteConsent(parseInt(consentId));
+      toast.success('Consentimiento eliminado exitosamente');
+      await loadPatientConsents(selectedPatient.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al eliminar el consentimiento';
+      toast.error(message);
+      throw error;
     }
   };
 
@@ -440,6 +468,8 @@ const PatientsPage = () => {
             userRole={user?.role}
             onClose={() => setSelectedPatient(null)}
             onUploadContract={() => setShowUploadContractModal(true)}
+            onDeleteContract={handleDeleteContract}
+            onDeleteConsent={handleDeleteConsent}
             onViewPaymentHistory={handleViewPaymentHistory}
           />
         )}

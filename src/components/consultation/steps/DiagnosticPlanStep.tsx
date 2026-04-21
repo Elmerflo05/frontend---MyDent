@@ -410,11 +410,12 @@ const DiagnosticPlanStepComponent = ({
           radiography_request_id: response.data.radiography_request_id
         }));
 
-        // Mensaje según si se creó o actualizó
+        // El servidor decide: si la última solicitud de la consulta sigue en
+        // 'pending' la actualiza; si ya fue procesada o no existe, crea una nueva.
         if (response.wasUpdated) {
-          toast.success('Solicitud de exámenes actualizada');
+          toast.success('Solicitud actualizada (aún pendiente de atención)');
         } else {
-          toast.success('Solicitud de exámenes creada - Se notificó al técnico de laboratorio');
+          toast.success('Nueva solicitud enviada al técnico de imágenes');
         }
 
         return true;

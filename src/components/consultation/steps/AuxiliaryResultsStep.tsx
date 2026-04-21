@@ -12,18 +12,44 @@
  * INTEGRACION: Usa la API real auxiliaryExamResultsApi para persistir archivos y observaciones.
  */
 
-import { Image, User, AlertCircle, ChevronLeft, ChevronRight, Save, Upload, X, FileText, Eye, AlertTriangle, Clock, ZoomIn, Loader2 } from 'lucide-react';
+import { Image, User, AlertCircle, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Save, Upload, X, FileText, Eye, AlertTriangle, Clock, CheckCircle2, ZoomIn, Loader2 } from 'lucide-react';
 import { formatTimestampToLima } from '@/utils/dateUtils';
 import { StepHeader, SectionCard, EmptyState } from '@/components/consultation/shared';
 import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
-import { radiographyApi, type RadiographyRequestData, type RadiographyResult } from '@/services/api/radiographyApi';
+import { radiographyApi, type RadiographyResult } from '@/services/api/radiographyApi';
+import {
+  radiographyRequestsApi,
+  type RadiographyRequestData,
+  type RadiographyRequestStatus
+} from '@/services/api/radiographyRequestsApi';
 import {
   auxiliaryExamResultsApi,
   type ExternalFile,
   type AuxiliaryExamResultData,
   type PatientExternalExam
 } from '@/services/api/auxiliaryExamResultsApi';
+
+interface RequestWithResults {
+  request: RadiographyRequestData;
+  results: RadiographyResult[];
+}
+
+/**
+ * Mapeo centralizado de estado de solicitud → presentación visual.
+ * Evita hardcodeo de strings y colores en el JSX.
+ */
+const REQUEST_STATUS_META: Record<
+  RadiographyRequestStatus,
+  { label: string; color: string; icon: typeof Clock }
+> = {
+  pending: { label: 'Pendiente de atención', color: 'bg-yellow-100 text-yellow-800 border-yellow-300', icon: Clock },
+  in_progress: { label: 'En proceso', color: 'bg-blue-100 text-blue-800 border-blue-300', icon: Clock },
+  completed: { label: 'Resultados disponibles', color: 'bg-green-100 text-green-800 border-green-300', icon: CheckCircle2 },
+  delivered: { label: 'Entregada', color: 'bg-green-100 text-green-800 border-green-300', icon: CheckCircle2 },
+  cancelled: { label: 'Cancelada', color: 'bg-gray-100 text-gray-700 border-gray-300', icon: X },
+  no_show: { label: 'Paciente no asistió', color: 'bg-red-100 text-red-800 border-red-300', icon: AlertTriangle }
+};
 
 // Interface para archivo del lightbox (imagenes y PDFs)
 interface LightboxFile {
@@ -84,10 +110,13 @@ const AuxiliaryResultsStepComponent = ({
   const [loadingExistingData, setLoadingExistingData] = useState(true);
   const [auxiliaryExamResultId, setAuxiliaryExamResultId] = useState<number | null>(null);
 
-  // Estado para solicitud de radiografia y sus resultados
-  const [radiographyRequest, setRadiographyRequest] = useState<RadiographyRequestData | null>(null);
-  const [radiographyResults, setRadiographyResults] = useState<RadiographyResult[]>([]);
-  const [loadingRequest, setLoadingRequest] = useState(true);
+  // Solicitudes de radiografia de la consulta (puede haber varias, la más reciente primero)
+  // y sus resultados asociados. Cada doctor puede enviar múltiples solicitudes a lo largo
+  // del tiempo: mientras la última esté pendiente se actualiza; una vez procesada, cada
+  // Guardar crea una nueva, para poder comparar resultados en el tiempo.
+  const [requestsWithResults, setRequestsWithResults] = useState<RequestWithResults[]>([]);
+  const [expandedRequestIds, setExpandedRequestIds] = useState<Set<number>>(new Set());
+  const [loadingRequests, setLoadingRequests] = useState(true);
 
   // Estado para examenes externos subidos por el paciente desde su portal
   const [patientExternalExams, setPatientExternalExams] = useState<PatientExternalExam[]>([]);
@@ -175,54 +204,43 @@ const AuxiliaryResultsStepComponent = ({
   }, [patientId]);
 
   // Construir lista de archivos para el lightbox cuando cambien los resultados
+  // Agrega los resultados de TODAS las solicitudes (en el mismo orden DESC) + archivos externos
   useEffect(() => {
     const allFiles: LightboxFile[] = [];
+    const backendBase = (import.meta.env.VITE_API_URL || 'http://localhost:4015/api').replace('/api', '');
 
-    // Agregar imagenes de radiografia
-    radiographyResults
-      .filter(r => r.result_type === 'image')
-      .forEach((result, index) => {
-        if (result.file_path) {
+    requestsWithResults.forEach(({ results }) => {
+      results
+        .filter(r => r.result_type === 'image' && r.file_path)
+        .forEach((result, index) => {
           allFiles.push({
-            url: `${(import.meta.env.VITE_API_URL || 'http://localhost:4015/api').replace('/api', '')}${result.file_path}`,
-            name: result.original_name || `Radiografia ${index + 1}`,
+            url: `${backendBase}${result.file_path}`,
+            name: result.original_name || `Radiografía ${index + 1}`,
             type: 'image'
           });
-        }
-      });
+        });
 
-    // Agregar documentos PDF de radiografia
-    radiographyResults
-      .filter(r => r.result_type === 'document')
-      .forEach((result, index) => {
-        if (result.file_path) {
+      results
+        .filter(r => r.result_type === 'document' && r.file_path)
+        .forEach((result, index) => {
           allFiles.push({
-            url: `${(import.meta.env.VITE_API_URL || 'http://localhost:4015/api').replace('/api', '')}${result.file_path}`,
+            url: `${backendBase}${result.file_path}`,
             name: result.original_name || `Documento ${index + 1}`,
             type: 'pdf'
           });
-        }
-      });
+        });
+    });
 
-    // Agregar archivos externos (imagenes y PDFs)
     externalFiles.forEach((file) => {
       if (file.type.startsWith('image/')) {
-        allFiles.push({
-          url: file.url,
-          name: file.name,
-          type: 'image'
-        });
+        allFiles.push({ url: file.url, name: file.name, type: 'image' });
       } else if (file.type === 'application/pdf') {
-        allFiles.push({
-          url: file.url,
-          name: file.name,
-          type: 'pdf'
-        });
+        allFiles.push({ url: file.url, name: file.name, type: 'pdf' });
       }
     });
 
     setLightboxFiles(allFiles);
-  }, [radiographyResults, externalFiles]);
+  }, [requestsWithResults, externalFiles]);
 
   // Funciones del lightbox
   const openLightbox = (index: number) => {
@@ -266,48 +284,85 @@ const AuxiliaryResultsStepComponent = ({
     };
   }, [lightboxOpen]);
 
-  // Buscar solicitud de radiografia al montar el componente
+  // Carga TODAS las solicitudes activas de la consulta (ordenadas DESC por
+  // date_time_registration) y los resultados asociados a cada una.
   useEffect(() => {
-    const loadRadiographyRequest = async () => {
+    const loadAllRequestsWithResults = async () => {
       if (!consultationId) {
-        setLoadingRequest(false);
+        setLoadingRequests(false);
         return;
       }
 
       try {
-        const response = await radiographyApi.getRadiographyRequests({
-          consultation_id: parseInt(consultationId),
-          limit: 1
-        });
+        const requests = await radiographyRequestsApi.getRequestsByConsultation(parseInt(consultationId));
 
-        if (response.success && response.data && response.data.length > 0) {
-          const request = response.data[0];
-          setRadiographyRequest(request);
+        const toTime = (iso?: string) => (iso ? new Date(iso).getTime() : 0);
+        const sorted = [...requests].sort(
+          (a, b) => toTime(b.date_time_registration) - toTime(a.date_time_registration)
+        );
 
-          const requestId = request.radiography_request_id || request.request_id;
-          if (requestId) {
+        const withResults = await Promise.all(
+          sorted.map(async (req) => {
+            const reqId = req.radiography_request_id;
+            if (!reqId) return { request: req, results: [] as RadiographyResult[] };
             try {
-              const resultsResponse = await radiographyApi.getResults(requestId);
-              if (resultsResponse.success && resultsResponse.data?.results) {
-                setRadiographyResults(resultsResponse.data.results);
-              }
-            } catch (resultsError) {
-              console.error('Error al cargar resultados:', resultsError);
+              const resp = await radiographyApi.getResults(reqId);
+              return {
+                request: req,
+                results: resp?.success && resp.data?.results ? resp.data.results : []
+              };
+            } catch (err) {
+              console.error(`Error al cargar resultados de solicitud ${reqId}:`, err);
+              return { request: req, results: [] as RadiographyResult[] };
             }
-          }
-        } else {
-          setRadiographyRequest(null);
+          })
+        );
+
+        setRequestsWithResults(withResults);
+
+        // Expandir por defecto la solicitud más reciente para que el doctor la vea al abrir
+        const firstId = withResults[0]?.request.radiography_request_id;
+        if (firstId) {
+          setExpandedRequestIds(new Set([firstId]));
         }
       } catch (error) {
-        console.error('Error al cargar solicitud de radiografia:', error);
-        setRadiographyRequest(null);
+        console.error('Error al cargar solicitudes de radiografía de la consulta:', error);
+        setRequestsWithResults([]);
       } finally {
-        setLoadingRequest(false);
+        setLoadingRequests(false);
       }
     };
 
-    loadRadiographyRequest();
+    loadAllRequestsWithResults();
   }, [consultationId]);
+
+  const toggleRequestExpanded = (requestId: number) => {
+    setExpandedRequestIds(prev => {
+      const next = new Set(prev);
+      if (next.has(requestId)) next.delete(requestId);
+      else next.add(requestId);
+      return next;
+    });
+  };
+
+  /**
+   * Devuelve el timestamp del último resultado subido para una solicitud (ISO),
+   * o null si todavía no hay resultados. Usa uploaded_at (TIMESTAMPTZ del servidor).
+   */
+  const getLatestUploadIso = (results: RadiographyResult[]): string | null => {
+    if (!results || results.length === 0) return null;
+    let maxIso: string | null = null;
+    let maxTime = 0;
+    for (const r of results) {
+      if (!r.uploaded_at) continue;
+      const t = new Date(r.uploaded_at).getTime();
+      if (t > maxTime) {
+        maxTime = t;
+        maxIso = r.uploaded_at;
+      }
+    }
+    return maxIso;
+  };
 
   // Tipos de archivo permitidos
   const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
@@ -567,215 +622,234 @@ const AuxiliaryResultsStepComponent = ({
 
       {!loadingExistingData && (
         <>
-          {/* Alertas de Solicitud de Radiografia */}
-          {!loadingRequest && radiographyRequest && (
-            <div className="mb-6">
-              {radiographyRequest.request_status === 'no_show' && (
-                <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <AlertTriangle className="w-6 h-6 text-red-600" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-red-900 mb-1">Inasistencia a Examenes</h4>
-                      <p className="text-sm text-red-700">
-                        El paciente no asistio a realizarse los examenes solicitados en el Plan de Diagnostico.
-                        Han transcurrido mas de 30 dias desde la solicitud.
-                      </p>
-                      <p className="text-xs text-red-600 mt-2">
-                        Solicitud creada: {radiographyRequest.request_date ? new Date(radiographyRequest.request_date).toLocaleDateString('es-PE') : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {(radiographyRequest.request_status === 'pending' || radiographyRequest.request_status === 'in_progress') && (
-                <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Clock className="w-6 h-6 text-yellow-600" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-yellow-900 mb-1">Esperando Resultados</h4>
-                      <p className="text-sm text-yellow-700">
-                        Los examenes fueron solicitados y estan pendientes de procesamiento.
-                        Los resultados apareceran aqui una vez que el tecnico de imagenes los suba al sistema.
-                      </p>
-                      <p className="text-xs text-yellow-600 mt-2">
-                        Solicitud enviada: {radiographyRequest.request_date ? new Date(radiographyRequest.request_date).toLocaleDateString('es-PE') : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {(radiographyRequest.request_status === 'completed' || radiographyRequest.request_status === 'delivered') && (
-                <div className="bg-green-50 border-2 border-green-300 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Image className="w-6 h-6 text-green-600" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-green-900 mb-1">Resultados Disponibles</h4>
-                      <p className="text-sm text-green-700">
-                        Los examenes han sido completados. {radiographyResults.length > 0 ? `Se encontraron ${radiographyResults.length} resultado(s).` : 'Los resultados estan disponibles abajo.'}
-                      </p>
-                      <p className="text-xs text-green-600 mt-2">
-                        Completado: {radiographyRequest.actual_exam_date ? new Date(radiographyRequest.actual_exam_date).toLocaleDateString('es-PE') : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
           <div className="space-y-8">
-            {/* Seccion de Resultados de Radiografia - Cargados del Backend */}
+            {/* Solicitudes de Radiografía con sus resultados (N por consulta) */}
             <SectionCard
               icon={Image}
-              title="Resultados de Radiografia"
-              subtitle="Imagenes y documentos subidos por el tecnico de imagenes"
+              title="Solicitudes y Resultados de Radiografía"
+              subtitle="Cada solicitud enviada al técnico de imágenes aparece como una tarjeta con fecha/hora precisas. La más reciente queda expandida por defecto."
               colorScheme="cyan"
               gradientTo="teal"
               animationDelay={0.05}
             >
-              {radiographyResults.length > 0 ? (
-                <div className="space-y-4">
-                  {/* Imagenes */}
-                  {radiographyResults.filter(r => r.result_type === 'image').length > 0 && (
-                    <div>
-                      <h5 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
-                        <Image className="w-4 h-4" />
-                        Imagenes ({radiographyResults.filter(r => r.result_type === 'image').length})
-                      </h5>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {radiographyResults
-                          .filter(r => r.result_type === 'image')
-                          .map((result, idx) => (
-                            <div
-                              key={result.result_id || idx}
-                              className="border border-cyan-200 rounded-lg overflow-hidden bg-white hover:shadow-md transition-shadow"
-                            >
-                              <div
-                                className="aspect-square bg-gray-100 flex items-center justify-center relative group cursor-pointer"
-                                onClick={() => openLightbox(idx)}
-                              >
-                                {result.file_path ? (
-                                  <>
-                                    <img
-                                      src={`${(import.meta.env.VITE_API_URL || 'http://localhost:4015/api').replace('/api', '')}${result.file_path}`}
-                                      alt={result.original_name || 'Imagen de radiografia'}
-                                      className="w-full h-full object-cover"
-                                    />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                      <ZoomIn className="w-8 h-8 text-white" />
-                                    </div>
-                                  </>
-                                ) : (
-                                  <Image className="w-12 h-12 text-gray-300" />
-                                )}
-                              </div>
-                              <div className="p-2">
-                                <p className="text-xs text-gray-700 truncate" title={result.original_name || ''}>
-                                  {result.original_name || 'Imagen'}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {result.uploaded_at ? new Date(result.uploaded_at).toLocaleDateString('es-PE') : ''}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Documentos */}
-                  {radiographyResults.filter(r => r.result_type === 'document').length > 0 && (
-                    <div>
-                      <h5 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
-                        <FileText className="w-4 h-4" />
-                        Documentos ({radiographyResults.filter(r => r.result_type === 'document').length})
-                      </h5>
-                      <div className="space-y-2">
-                        {radiographyResults
-                          .filter(r => r.result_type === 'document')
-                          .map((result, idx) => (
-                            <div
-                              key={result.result_id || idx}
-                              className="flex items-center gap-3 p-3 bg-white border border-cyan-200 rounded-lg hover:border-cyan-400 transition-colors"
-                            >
-                              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <FileText className="w-5 h-5 text-red-600" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-900 text-sm truncate">
-                                  {result.original_name || 'Documento'}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {result.uploaded_at ? new Date(result.uploaded_at).toLocaleDateString('es-PE') : ''}
-                                </p>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  const imageCount = radiographyResults.filter(r => r.result_type === 'image').length;
-                                  openLightbox(imageCount + idx);
-                                }}
-                                className="flex items-center gap-1 bg-cyan-600 text-white px-3 py-1.5 rounded-lg hover:bg-cyan-700 transition-colors text-sm"
-                              >
-                                <Eye className="w-4 h-4" />
-                                Ver
-                              </button>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Enlaces externos */}
-                  {radiographyResults.filter(r => r.result_type === 'external_link').length > 0 && (
-                    <div>
-                      <h5 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4" />
-                        Enlaces Externos ({radiographyResults.filter(r => r.result_type === 'external_link').length})
-                      </h5>
-                      <div className="space-y-2">
-                        {radiographyResults
-                          .filter(r => r.result_type === 'external_link')
-                          .map((result, idx) => (
-                            <div
-                              key={result.result_id || idx}
-                              className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg"
-                            >
-                              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <AlertCircle className="w-5 h-5 text-blue-600" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm text-blue-600 truncate">
-                                  {result.external_url || 'Enlace externo'}
-                                </p>
-                              </div>
-                              <a
-                                href={result.external_url || '#'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                              >
-                                <Eye className="w-4 h-4" />
-                                Abrir
-                              </a>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
+              {loadingRequests ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="w-6 h-6 animate-spin text-cyan-600" />
+                  <span className="ml-2 text-gray-600">Cargando solicitudes…</span>
                 </div>
-              ) : (
+              ) : requestsWithResults.length === 0 ? (
                 <EmptyState
                   icon={Image}
-                  message="Los resultados de radiografia apareceran aqui una vez que el tecnico de imagenes los suba al sistema"
+                  message="Aún no hay solicitudes de radiografía para esta consulta. Una vez que el doctor guarde el Plan Diagnóstico, aparecerán aquí agrupadas por solicitud."
                 />
+              ) : (
+                <div className="space-y-4">
+                  {requestsWithResults.map(({ request, results }) => {
+                    const reqId = request.radiography_request_id as number;
+                    const isExpanded = expandedRequestIds.has(reqId);
+                    const statusMeta = REQUEST_STATUS_META[request.request_status as RadiographyRequestStatus] ||
+                      REQUEST_STATUS_META.pending;
+                    const StatusIcon = statusMeta.icon;
+                    const createdIso = request.date_time_registration;
+                    const latestUploadIso = getLatestUploadIso(results);
+                    const imagesCount = results.filter(r => r.result_type === 'image').length;
+                    const docsCount = results.filter(r => r.result_type === 'document').length;
+                    const linksCount = results.filter(r => r.result_type === 'external_link').length;
+
+                    // Índice base de esta solicitud dentro del lightbox global (solo images+docs,
+                    // respetando el orden DESC de las solicitudes, coherente con el useEffect
+                    // que arma lightboxFiles).
+                    let lightboxBaseIndex = 0;
+                    for (const rwr of requestsWithResults) {
+                      if (rwr.request.radiography_request_id === reqId) break;
+                      lightboxBaseIndex +=
+                        rwr.results.filter(r => r.result_type === 'image' && r.file_path).length +
+                        rwr.results.filter(r => r.result_type === 'document' && r.file_path).length;
+                    }
+
+                    return (
+                      <div
+                        key={reqId}
+                        className="border-2 border-cyan-100 rounded-xl overflow-hidden bg-white"
+                      >
+                        {/* Encabezado colapsable */}
+                        <button
+                          type="button"
+                          onClick={() => toggleRequestExpanded(reqId)}
+                          className="w-full flex items-center gap-4 px-4 py-3 bg-cyan-50 hover:bg-cyan-100 transition-colors text-left"
+                        >
+                          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0 border border-cyan-200">
+                            <Image className="w-5 h-5 text-cyan-700" />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <h5 className="font-semibold text-gray-900">
+                                Solicitada: {formatTimestampToLima(createdIso, 'datetime')}
+                              </h5>
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${statusMeta.color}`}>
+                                <StatusIcon className="w-3 h-3" />
+                                {statusMeta.label}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-600">
+                              {latestUploadIso
+                                ? <>Resultados subidos: {formatTimestampToLima(latestUploadIso, 'datetime')}</>
+                                : <>Sin resultados subidos todavía</>}
+                              {results.length > 0 && (
+                                <span className="ml-2 text-gray-500">
+                                  · {imagesCount} imagen(es), {docsCount} documento(s){linksCount > 0 ? `, ${linksCount} enlace(s)` : ''}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+
+                          {isExpanded ? (
+                            <ChevronUp className="w-5 h-5 text-cyan-700 flex-shrink-0" />
+                          ) : (
+                            <ChevronDown className="w-5 h-5 text-cyan-700 flex-shrink-0" />
+                          )}
+                        </button>
+
+                        {/* Cuerpo colapsable */}
+                        {isExpanded && (
+                          <div className="p-4">
+                            {results.length === 0 ? (
+                              <div className="text-center text-sm text-gray-500 py-4">
+                                Esperando a que el técnico de imágenes suba los resultados de esta solicitud.
+                              </div>
+                            ) : (
+                              <div className="space-y-4">
+                                {imagesCount > 0 && (
+                                  <div>
+                                    <h6 className="font-medium text-gray-700 mb-2 flex items-center gap-2 text-sm">
+                                      <Image className="w-4 h-4" /> Imágenes ({imagesCount})
+                                    </h6>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                      {results
+                                        .filter(r => r.result_type === 'image' && r.file_path)
+                                        .map((result, idx) => {
+                                          const globalIdx = lightboxBaseIndex + idx;
+                                          const backendBase = (import.meta.env.VITE_API_URL || 'http://localhost:4015/api').replace('/api', '');
+                                          return (
+                                            <div
+                                              key={result.result_id || idx}
+                                              className="border border-cyan-200 rounded-lg overflow-hidden bg-white hover:shadow-md transition-shadow"
+                                            >
+                                              <div
+                                                className="aspect-square bg-gray-100 flex items-center justify-center relative group cursor-pointer"
+                                                onClick={() => openLightbox(globalIdx)}
+                                              >
+                                                <img
+                                                  src={`${backendBase}${result.file_path}`}
+                                                  alt={result.original_name || 'Imagen'}
+                                                  className="w-full h-full object-cover"
+                                                />
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                  <ZoomIn className="w-8 h-8 text-white" />
+                                                </div>
+                                              </div>
+                                              <div className="p-2">
+                                                <p className="text-xs text-gray-700 truncate" title={result.original_name || ''}>
+                                                  {result.original_name || 'Imagen'}
+                                                </p>
+                                                <p className="text-xs text-gray-500">
+                                                  {formatTimestampToLima(result.uploaded_at, 'datetime')}
+                                                </p>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {docsCount > 0 && (
+                                  <div>
+                                    <h6 className="font-medium text-gray-700 mb-2 flex items-center gap-2 text-sm">
+                                      <FileText className="w-4 h-4" /> Documentos ({docsCount})
+                                    </h6>
+                                    <div className="space-y-2">
+                                      {results
+                                        .filter(r => r.result_type === 'document' && r.file_path)
+                                        .map((result, idx) => {
+                                          const globalIdx = lightboxBaseIndex + imagesCount + idx;
+                                          return (
+                                            <div
+                                              key={result.result_id || idx}
+                                              className="flex items-center gap-3 p-3 bg-white border border-cyan-200 rounded-lg hover:border-cyan-400 transition-colors"
+                                            >
+                                              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                <FileText className="w-5 h-5 text-red-600" />
+                                              </div>
+                                              <div className="flex-1 min-w-0">
+                                                <p className="font-medium text-gray-900 text-sm truncate">
+                                                  {result.original_name || 'Documento'}
+                                                </p>
+                                                <p className="text-xs text-gray-500">
+                                                  {formatTimestampToLima(result.uploaded_at, 'datetime')}
+                                                </p>
+                                              </div>
+                                              <button
+                                                onClick={() => openLightbox(globalIdx)}
+                                                className="flex items-center gap-1 bg-cyan-600 text-white px-3 py-1.5 rounded-lg hover:bg-cyan-700 transition-colors text-sm"
+                                              >
+                                                <Eye className="w-4 h-4" />
+                                                Ver
+                                              </button>
+                                            </div>
+                                          );
+                                        })}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {linksCount > 0 && (
+                                  <div>
+                                    <h6 className="font-medium text-gray-700 mb-2 flex items-center gap-2 text-sm">
+                                      <AlertCircle className="w-4 h-4" /> Enlaces Externos ({linksCount})
+                                    </h6>
+                                    <div className="space-y-2">
+                                      {results
+                                        .filter(r => r.result_type === 'external_link')
+                                        .map((result, idx) => (
+                                          <div
+                                            key={result.result_id || idx}
+                                            className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg"
+                                          >
+                                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                              <AlertCircle className="w-5 h-5 text-blue-600" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-sm text-blue-600 truncate">
+                                                {result.external_url || 'Enlace externo'}
+                                              </p>
+                                              <p className="text-xs text-gray-500">
+                                                {formatTimestampToLima(result.uploaded_at, 'datetime')}
+                                              </p>
+                                            </div>
+                                            <a
+                                              href={result.external_url || '#'}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                                            >
+                                              <Eye className="w-4 h-4" />
+                                              Abrir
+                                            </a>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </SectionCard>
 

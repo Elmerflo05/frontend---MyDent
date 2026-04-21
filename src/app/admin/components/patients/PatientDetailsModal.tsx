@@ -7,6 +7,7 @@ import {
   Calendar,
   Plus,
   Download,
+  Trash2,
   Stethoscope,
   ClipboardList,
   MessageSquare,
@@ -29,6 +30,7 @@ import type {
   User as UserType,
   MedicalRecord
 } from '@/types';
+import { DeleteConfirmModal } from '../common/DeleteConfirmModal';
 import {
   calculateAge,
   getGenderLabel,
@@ -40,6 +42,7 @@ import {
 import { handleViewConsent, handlePrintConsent, handleDownloadConsent } from '../../utils/consentHelpers';
 import { exportPatientIntegralPDF } from '../../utils/exportPatientPDF';
 import type { PatientIntegralData } from '../../services/patientApiService';
+import { ROLES } from '@/constants/roles';
 
 /**
  * Formatea una fecha string (YYYY-MM-DD) a formato legible sin desfase de timezone
@@ -81,6 +84,8 @@ interface PatientDetailsModalProps {
   userRole?: string;
   onClose: () => void;
   onUploadContract: () => void;
+  onDeleteContract?: (contractId: string) => Promise<void>;
+  onDeleteConsent?: (consentId: string) => Promise<void>;
   onViewPaymentHistory?: () => void;
 }
 
@@ -97,10 +102,30 @@ export const PatientDetailsModal = ({
   userRole,
   onClose,
   onUploadContract,
+  onDeleteContract,
+  onDeleteConsent,
   onViewPaymentHistory,
 }: PatientDetailsModalProps) => {
   const navigate = useNavigate();
   const [isExporting, setIsExporting] = useState(false);
+  const [contractToDelete, setContractToDelete] = useState<PatientContract | null>(null);
+  const [consentToDelete, setConsentToDelete] = useState<SignedConsent | null>(null);
+
+  const isSuperAdmin = userRole === ROLES.SUPER_ADMIN;
+  const canDeleteContracts = isSuperAdmin && !!onDeleteContract;
+  const canDeleteConsents = isSuperAdmin && !!onDeleteConsent;
+
+  const handleConfirmDeleteContract = async () => {
+    if (!contractToDelete || !onDeleteContract) return;
+    await onDeleteContract(contractToDelete.id);
+    setContractToDelete(null);
+  };
+
+  const handleConfirmDeleteConsent = async () => {
+    if (!consentToDelete || !onDeleteConsent) return;
+    await onDeleteConsent(consentToDelete.id);
+    setConsentToDelete(null);
+  };
 
   const handleExportPDF = async () => {
     setIsExporting(true);
@@ -561,6 +586,16 @@ export const PatientDetailsModal = ({
                         >
                           <Printer className="w-4 h-4" />
                         </button>
+                        {canDeleteConsents && (
+                          <button
+                            onClick={() => setConsentToDelete(consent)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Eliminar"
+                            aria-label={`Eliminar consentimiento ${consent.consentimientoNombre}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -775,20 +810,63 @@ export const PatientDetailsModal = ({
                       </span>
                     </div>
                   </div>
-                  <a
-                    href={contract.contractFile}
-                    download={`${contract.contractName}.pdf`}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-                  >
-                    <Download className="w-4 h-4" />
-                    Descargar
-                  </a>
+                  <div className="flex items-center gap-1">
+                    <a
+                      href={contract.contractFile}
+                      download={`${contract.contractName}.pdf`}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      Descargar
+                    </a>
+                    {canDeleteContracts && (
+                      <button
+                        type="button"
+                        onClick={() => setContractToDelete(contract)}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                        aria-label={`Eliminar contrato ${contract.contractName}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Eliminar
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
       </Modal.Body>
+
+      {contractToDelete && (
+        <DeleteConfirmModal
+          title="Eliminar contrato"
+          entityName={contractToDelete.contractName}
+          entityMeta={contractToDelete.contractType ? `Tipo: ${contractToDelete.contractType}` : undefined}
+          requireTypedConfirmation={contractToDelete.status === 'signed'}
+          warningTitle={contractToDelete.status === 'signed' ? 'Este contrato ya fue firmado por el paciente' : undefined}
+          warningDescription={
+            contractToDelete.status === 'signed'
+              ? 'Un contrato firmado tiene valor probatorio.'
+              : undefined
+          }
+          onConfirm={handleConfirmDeleteContract}
+          onCancel={() => setContractToDelete(null)}
+        />
+      )}
+
+      {consentToDelete && (
+        <DeleteConfirmModal
+          title="Eliminar consentimiento firmado"
+          entityName={consentToDelete.consentimientoNombre}
+          entityMeta={consentToDelete.consentimientoCategoria ? `Categoría: ${consentToDelete.consentimientoCategoria}` : undefined}
+          requireTypedConfirmation
+          warningTitle="Consentimiento firmado por el paciente"
+          warningDescription="Un consentimiento firmado tiene valor probatorio legal."
+          onConfirm={handleConfirmDeleteConsent}
+          onCancel={() => setConsentToDelete(null)}
+        />
+      )}
 
       {/* Footer - Fijo */}
       <Modal.Footer>

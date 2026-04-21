@@ -40,6 +40,8 @@ import {
   Receipt,
   Syringe,
   ChevronDown,
+  ChevronRight,
+  Eye,
   Calendar,
   User,
   Loader2,
@@ -316,6 +318,10 @@ const PatientIntegralHistory = () => {
   const [expandedSections, setExpandedSections] = useState<Record<number, boolean>>({ 1: true });
   const [activeTab, setActiveTab] = useState<ActiveTab>('integral');
   const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
+  const [presupuestoExpanded, setPresupuestoExpanded] = useState<{ dx: boolean; tx: boolean; svc: boolean }>({
+    dx: false, tx: false, svc: false
+  });
+  const [examModalOpen, setExamModalOpen] = useState(false);
 
   // ---- Data loading ----
   const loadData = useCallback(async () => {
@@ -1137,22 +1143,184 @@ const PatientIntegralHistory = () => {
   const renderPresupuesto = () => {
     const budget = selectedConsultation?.budget;
     if (!budget) return <EmptySection text="Sin presupuesto" />;
+
+    const dx: any[] = (selectedConsultation as any)?.definitive_diagnosis || [];
+    const tpItems: any[] = (selectedConsultation as any)?.treatment_plan?.items || [];
+    const tpServices: any[] = (selectedConsultation as any)?.treatment_plan?.additional_services || [];
+
+    const showDxRow = budget.definitive_diagnosis_total != null;
+    const showTxRow = budget.treatments_total != null;
+    const showSvcRow = budget.additional_services_total != null;
+    const showExamRow = budget.exams_total != null;
+
+    const expandableCount = [showDxRow, showTxRow, showSvcRow].filter(Boolean).length;
+    const openCount =
+      (presupuestoExpanded.dx && showDxRow ? 1 : 0) +
+      (presupuestoExpanded.tx && showTxRow ? 1 : 0) +
+      (presupuestoExpanded.svc && showSvcRow ? 1 : 0);
+    const allExpanded = expandableCount > 0 && openCount === expandableCount;
+
+    const toggleAll = () => {
+      const next = !allExpanded;
+      setPresupuestoExpanded({ dx: next, tx: next, svc: next });
+    };
+    const toggleRow = (key: 'dx' | 'tx' | 'svc') =>
+      setPresupuestoExpanded(prev => ({ ...prev, [key]: !prev[key] }));
+
+    const renderCategoryRow = (
+      keyId: 'dx' | 'tx' | 'svc',
+      label: string,
+      total: any,
+      items: any[],
+      detail: React.ReactNode
+    ) => {
+      const open = presupuestoExpanded[keyId];
+      return (
+        <div className="border-b border-amber-200">
+          <button
+            onClick={() => toggleRow(keyId)}
+            className="w-full flex items-center justify-between py-3 px-1 text-left hover:bg-amber-50/50 transition-colors rounded"
+          >
+            <div className="flex items-center gap-2">
+              <ChevronRight
+                className={`w-4 h-4 text-amber-700 transition-transform ${open ? 'rotate-90' : ''}`}
+              />
+              <span className="text-sm font-medium text-gray-700">{label}</span>
+            </div>
+            <span className="text-sm font-semibold text-gray-800">{formatCurrency(total)}</span>
+          </button>
+          <AnimatePresence initial={false}>
+            {open && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="pb-4 pt-1 px-1">
+                  {items.length === 0 ? (
+                    <p className="text-xs text-amber-700/70 italic">Sin detalle disponible para este grupo</p>
+                  ) : (
+                    detail
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      );
+    };
+
+    const dxDetail = (
+      <div className="overflow-x-auto rounded-lg border border-amber-100 bg-white">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-amber-50/70 text-amber-700">
+              <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider">Pieza</th>
+              <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider">Condicion</th>
+              <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider">CIE-10</th>
+              <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider">Sup.</th>
+              <th className="px-3 py-2 text-right font-semibold uppercase tracking-wider">Precio</th>
+              <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider">Procedimiento</th>
+              <th className="px-3 py-2 text-right font-semibold uppercase tracking-wider">Precio Proc.</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-amber-50">
+            {dx.map((item: any, i: number) => (
+              <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-amber-50/20'}>
+                <td className="px-3 py-2 font-mono text-gray-800">{item.tooth_number ?? '-'}</td>
+                <td className="px-3 py-2 text-gray-800">{item.condition_label || '-'}</td>
+                <td className="px-3 py-2 font-mono text-purple-600 font-semibold">{item.cie10_code || '-'}</td>
+                <td className="px-3 py-2 text-gray-600">{item.surfaces || '-'}</td>
+                <td className="px-3 py-2 text-right text-gray-800 font-medium">{item.price != null ? formatCurrency(item.price) : '-'}</td>
+                <td className="px-3 py-2 text-gray-600">{item.selected_procedure_name || '-'}</td>
+                <td className="px-3 py-2 text-right text-gray-800 font-medium">{item.procedure_price != null ? formatCurrency(item.procedure_price) : '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+
+    const txDetail = (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {tpItems.map((item: any, i: number) => (
+          <div key={i} className="bg-white border border-red-100 rounded-xl p-3 text-xs">
+            <div className="flex justify-between items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-800">{item.procedure_name || item.description || `Item ${i + 1}`}</p>
+                {item.tooth_number && <p className="text-[11px] text-red-700 font-mono mt-0.5">Pieza {item.tooth_number}</p>}
+                {item.notes && <p className="text-[11px] text-gray-500 mt-1">{item.notes}</p>}
+              </div>
+              {item.price != null && (
+                <span className="font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded whitespace-nowrap">{formatCurrency(item.price)}</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+
+    const svcDetail = (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {tpServices.map((svc: any, i: number) => (
+          <div key={i} className="bg-white border border-red-100 rounded-xl p-3 text-xs">
+            <div className="flex justify-between items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-800">{svc.service_name || svc.description || `Servicio ${i + 1}`}</p>
+                {svc.service_type && <p className="text-[11px] text-red-700 mt-0.5">{svc.service_type}</p>}
+                {svc.modality && <p className="text-[11px] text-gray-500 mt-0.5">Modalidad: {svc.modality}</p>}
+              </div>
+              {svc.monto_total != null && (
+                <span className="font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded whitespace-nowrap">{formatCurrency(svc.monto_total)}</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+
     return (
       <div className="space-y-4">
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100/30 border border-amber-200 rounded-xl p-5 space-y-3">
-          {budget.definitive_diagnosis_total != null && (
-            <div className="flex justify-between text-sm"><span className="text-gray-600">Diagnostico definitivo</span><span className="text-gray-800 font-medium">{formatCurrency(budget.definitive_diagnosis_total)}</span></div>
+        {expandableCount > 0 && (
+          <div className="flex justify-end">
+            <button
+              onClick={toggleAll}
+              className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition"
+            >
+              {allExpanded ? 'Colapsar todo' : 'Expandir todo'}
+            </button>
+          </div>
+        )}
+
+        <div className="bg-gradient-to-br from-amber-50 to-amber-100/30 border border-amber-200 rounded-xl p-5">
+          {showDxRow && renderCategoryRow('dx', 'Diagnostico definitivo', budget.definitive_diagnosis_total, dx, dxDetail)}
+          {showTxRow && renderCategoryRow('tx', 'Tratamientos', budget.treatments_total, tpItems, txDetail)}
+          {showSvcRow && renderCategoryRow('svc', 'Servicios adicionales', budget.additional_services_total, tpServices, svcDetail)}
+
+          {showExamRow && (
+            <div className="border-b border-amber-200">
+              <div className="flex items-center justify-between py-3 px-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-4 h-4" aria-hidden="true" />
+                  <span className="text-sm font-medium text-gray-700">Examenes</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setExamModalOpen(true)}
+                    className="text-xs font-semibold text-amber-700 bg-white border border-amber-300 px-3 py-1 rounded-lg hover:bg-amber-100 transition flex items-center gap-1.5"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    Ver formulario de examenes
+                  </button>
+                  <span className="text-sm font-semibold text-gray-800">{formatCurrency(budget.exams_total)}</span>
+                </div>
+              </div>
+            </div>
           )}
-          {budget.treatments_total != null && (
-            <div className="flex justify-between text-sm"><span className="text-gray-600">Tratamientos</span><span className="text-gray-800 font-medium">{formatCurrency(budget.treatments_total)}</span></div>
-          )}
-          {budget.additional_services_total != null && (
-            <div className="flex justify-between text-sm"><span className="text-gray-600">Servicios adicionales</span><span className="text-gray-800 font-medium">{formatCurrency(budget.additional_services_total)}</span></div>
-          )}
-          {budget.exams_total != null && (
-            <div className="flex justify-between text-sm"><span className="text-gray-600">Examenes</span><span className="text-gray-800 font-medium">{formatCurrency(budget.exams_total)}</span></div>
-          )}
-          <div className="border-t border-amber-300 pt-3 mt-3 space-y-2">
+
+          <div className="pt-4 space-y-2">
             {budget.grand_total != null && (
               <div className="flex justify-between items-center">
                 <span className="text-sm font-bold text-gray-800">Total general</span>
@@ -1173,12 +1341,214 @@ const PatientIntegralHistory = () => {
             )}
           </div>
         </div>
+
         {budget.budget_observations && (
           <div>
             <h5 className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-1.5">Observaciones</h5>
             <p className="text-sm text-gray-700 bg-amber-50 rounded-xl p-4 border border-amber-100">{budget.budget_observations}</p>
           </div>
         )}
+      </div>
+    );
+  };
+
+  const renderExamModal = () => {
+    if (!examModalOpen) return null;
+    const radiographyRequests: any[] = (selectedConsultation as any)?.radiography_requests || [];
+    const examResults: any = (selectedConsultation as any)?.exam_results;
+
+    const getFullUrl = (path: string | null): string => {
+      if (!path) return '';
+      if (path.startsWith('http://') || path.startsWith('https://')) return path;
+      const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+      return `${BACKEND_URL}/${cleanPath}`;
+    };
+
+    const hasObs = !!examResults?.doctor_observations;
+    const hasFiles = (examResults?.external_files?.length || 0) > 0;
+    const hasAny = radiographyRequests.length > 0 || hasObs || hasFiles;
+
+    const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
+      pending: { label: 'Pendiente', bg: 'bg-yellow-100', text: 'text-yellow-800' },
+      in_progress: { label: 'En proceso', bg: 'bg-blue-100', text: 'text-blue-800' },
+      completed: { label: 'Completado', bg: 'bg-green-100', text: 'text-green-800' },
+      delivered: { label: 'Entregado', bg: 'bg-emerald-100', text: 'text-emerald-800' },
+      cancelled: { label: 'Cancelado', bg: 'bg-red-100', text: 'text-red-800' },
+    };
+
+    return (
+      <div
+        className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+        onClick={() => setExamModalOpen(false)}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-lg bg-cyan-100 flex items-center justify-center">
+                <ClipboardList className="w-5 h-5 text-cyan-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Formulario de examenes</h3>
+                <p className="text-xs text-gray-500">Solicitud de radiografia y resultados auxiliares</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setExamModalOpen(false)}
+              className="p-1.5 rounded-lg hover:bg-gray-100"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+
+          <div className="p-6 overflow-y-auto flex-1 space-y-5">
+            {!hasAny && (
+              <p className="text-sm text-gray-500 text-center py-8">Sin datos de examenes registrados</p>
+            )}
+
+            {radiographyRequests.map((req: any, i: number) => {
+              const requestData = req.request_data || {};
+              const tomografia3D: Tomografia3DFormData = {
+                ...INITIAL_TOMOGRAFIA_FORM,
+                ...requestData.tomografia3D
+              };
+              const radiografias: RadiografiasFormData = {
+                ...INITIAL_RADIOGRAFIAS_FORM,
+                ...requestData.radiografias
+              };
+              const hasTomografiaSelection = Object.values(tomografia3D).some(
+                v => v === true || (typeof v === 'string' && v.trim())
+              );
+              const hasRadiografiasSelection = Object.values(radiografias).some(
+                v => v === true || (Array.isArray(v) && v.length > 0) || (typeof v === 'string' && v.trim())
+              );
+              const typeLabel = req.radiography_type === 'diagnostic_plan'
+                ? (hasTomografiaSelection && hasRadiografiasSelection ? 'Tomografia 3D + Radiografias'
+                   : hasTomografiaSelection ? 'Tomografia 3D'
+                   : hasRadiografiasSelection ? 'Radiografias'
+                   : 'Plan Diagnostico')
+                : (req.radiography_type || 'Plan Diagnostico');
+              const sts = statusConfig[req.request_status] || statusConfig.pending;
+
+              return (
+                <div key={i} className="bg-purple-50/40 border border-purple-100 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-xs font-bold text-purple-700 uppercase tracking-wider">
+                      Solicitud de radiografia{radiographyRequests.length > 1 ? ` #${i + 1}` : ''}
+                    </h4>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium ${sts.bg} ${sts.text}`}>
+                      {sts.label}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                    <div>
+                      <span className="text-[11px] text-gray-500 uppercase">Tipo</span>
+                      <p className="text-gray-800 font-medium">{typeLabel}</p>
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-gray-500 uppercase">Urgencia</span>
+                      <p className="text-gray-800 font-medium">{req.urgency || '-'}</p>
+                    </div>
+                    {req.area_of_interest && (
+                      <div className="col-span-2">
+                        <span className="text-[11px] text-gray-500 uppercase">Area de interes</span>
+                        <p className="text-gray-800">{req.area_of_interest}</p>
+                      </div>
+                    )}
+                    {req.clinical_indication && (
+                      <div className="col-span-2">
+                        <span className="text-[11px] text-gray-500 uppercase">Indicacion clinica</span>
+                        <p className="text-gray-800 leading-relaxed">{req.clinical_indication}</p>
+                      </div>
+                    )}
+                    {req.request_date && (
+                      <div>
+                        <span className="text-[11px] text-gray-500 uppercase">Fecha solicitud</span>
+                        <p className="text-gray-800">{formatTimestampToLima(req.request_date, 'date')}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {hasTomografiaSelection && (
+                    <div className="mt-3">
+                      <Tomografia3DSection mode="view" colorTheme="cyan" showPrices={false} formData={tomografia3D} />
+                    </div>
+                  )}
+                  {hasRadiografiasSelection && (
+                    <div className="mt-3">
+                      <RadiografiasSection mode="view" colorTheme="cyan" showPrices={false} formData={radiografias} />
+                    </div>
+                  )}
+                  {!hasTomografiaSelection && !hasRadiografiasSelection && (
+                    <p className="text-xs text-purple-700/70 italic">Solicitud registrada sin detalles adicionales</p>
+                  )}
+                </div>
+              );
+            })}
+
+            {(hasObs || hasFiles) && (
+              <div className="bg-cyan-50/40 border border-cyan-100 rounded-xl p-4">
+                <h4 className="text-xs font-bold text-cyan-700 uppercase tracking-wider mb-3">
+                  Resultados auxiliares
+                </h4>
+                {hasObs && (
+                  <>
+                    <h5 className="text-[11px] font-semibold text-cyan-700 uppercase tracking-wider mb-1">
+                      Observaciones del doctor
+                    </h5>
+                    <p className="text-sm text-gray-700 leading-relaxed mb-4 whitespace-pre-wrap">
+                      {examResults.doctor_observations}
+                    </p>
+                  </>
+                )}
+                {hasFiles && (
+                  <>
+                    <h5 className="text-[11px] font-semibold text-cyan-700 uppercase tracking-wider mb-2">
+                      Archivos adjuntos
+                    </h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {examResults.external_files.map((file: any, i: number) => {
+                        const filePath = typeof file === 'string' ? file : (file.path || file.url || file.filename || '');
+                        const fileName = (file && typeof file === 'object' && file.name) ? file.name : (filePath.split('/').pop() || `Archivo ${i + 1}`);
+                        const fullUrl = getFullUrl(filePath);
+                        return (
+                          <a
+                            key={i}
+                            href={fullUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-3 p-3 bg-white border border-cyan-100 rounded-lg hover:bg-cyan-50 transition-colors"
+                          >
+                            <div className="w-9 h-9 rounded-lg bg-cyan-100 flex items-center justify-center">
+                              <FileText className="w-5 h-5 text-cyan-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-800 truncate">{fileName}</p>
+                            </div>
+                            <span className="text-[11px] font-semibold text-cyan-700">Abrir</span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="px-6 py-4 border-t border-gray-200 flex justify-end flex-shrink-0">
+            <button
+              onClick={() => setExamModalOpen(false)}
+              className="text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition"
+            >
+              Cerrar
+            </button>
+          </div>
+        </motion.div>
       </div>
     );
   };
@@ -1305,6 +1675,11 @@ const PatientIntegralHistory = () => {
             onClose={() => setLightboxImage(null)}
           />
         )}
+      </AnimatePresence>
+
+      {/* Modal formulario de examenes (seccion Presupuesto) */}
+      <AnimatePresence>
+        {renderExamModal()}
       </AnimatePresence>
 
       {/* Header fijo */}

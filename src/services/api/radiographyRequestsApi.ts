@@ -5,6 +5,14 @@
 
 import httpClient from './httpClient';
 
+export type RadiographyRequestStatus =
+  | 'pending'
+  | 'in_progress'
+  | 'completed'
+  | 'delivered'
+  | 'cancelled'
+  | 'no_show';
+
 export interface RadiographyRequestData {
   radiography_request_id?: number;
   patient_id?: number;
@@ -17,7 +25,9 @@ export interface RadiographyRequestData {
   area_of_interest?: string;
   clinical_indication?: string;
   urgency?: 'normal' | 'urgent' | 'emergency';
-  request_status?: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  request_status?: RadiographyRequestStatus;
+  date_time_registration?: string;
+  date_time_modification?: string;
   notes?: string;
   request_data?: {
     patientData?: {
@@ -189,12 +199,29 @@ class RadiographyRequestsApiService {
   }
 
   /**
-   * Obtiene solicitud por consultation_id
+   * Obtiene TODAS las solicitudes activas por consultation_id, ordenadas
+   * por date_time_registration DESC (última primero).
    */
-  async getRequestByConsultation(consultationId: number): Promise<RadiographyRequestData | null> {
+  async getRequestsByConsultation(consultationId: number): Promise<RadiographyRequestData[]> {
     try {
-      const response = await this.getRequests({ consultation_id: consultationId, limit: 1 });
-      return response.data.length > 0 ? response.data[0] : null;
+      const response = await this.getRequests({ consultation_id: consultationId, limit: 100 });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Elimina (soft-delete) una solicitud de radiografía.
+   * El backend rechaza con 409 si no está en estado 'pending'.
+   */
+  async deleteRequest(requestId: number): Promise<{ success: boolean }> {
+    try {
+      const response = await httpClient.delete<{ success: boolean }>(`/radiography/${requestId}`);
+      if (!response.success) {
+        throw new Error((response as any).message || 'No se pudo eliminar la solicitud');
+      }
+      return response;
     } catch (error) {
       throw error;
     }

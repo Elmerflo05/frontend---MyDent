@@ -110,8 +110,8 @@ interface BudgetData {
       modified_count: number;
     };
   } | null;
-  // Solicitud de radiografia del paso 4
-  radiographyRequest: RadiographyRequestData | null;
+  // Solicitudes de radiografía del paso 4 (pueden ser N por consulta)
+  radiographyRequests: RadiographyRequestData[];
   // Estado de carga
   loading: boolean;
   error: string | null;
@@ -314,7 +314,7 @@ const BudgetStepComponent = ({
     savedBudget: null,
     treatmentPlan: null,
     definitiveDiagnosis: null,
-    radiographyRequest: null,
+    radiographyRequests: [],
     loading: true,
     error: null,
     saving: false
@@ -350,12 +350,13 @@ const BudgetStepComponent = ({
     setBudgetData(prev => ({ ...prev, loading: true, error: null }));
 
     try {
-      // Cargar en paralelo: Presupuesto guardado, Plan de tratamiento, Diagnostico Definitivo y Radiografia
+      // Cargar en paralelo: Presupuesto guardado, Plan de tratamiento, Diagnóstico Definitivo y
+      // TODAS las solicitudes de radiografía de la consulta (puede haber varias a lo largo del tiempo).
       const [budgetResponse, treatmentPlanResponse, definitiveDiagnosisResponse, radiographyResponse] = await Promise.all([
         consultationBudgetsApi.getBudget(consultationId).catch(() => null),
         consultationsApi.getConsultationTreatmentPlan(consultationId).catch(() => null),
         consultationsApi.getDefinitiveDiagnosis(consultationId).catch(() => null),
-        radiographyRequestsApi.getRequestByConsultation(consultationId).catch(() => null)
+        radiographyRequestsApi.getRequestsByConsultation(consultationId).catch(() => [] as RadiographyRequestData[])
       ]);
 
       const savedBudget = budgetResponse?.data || null;
@@ -370,7 +371,7 @@ const BudgetStepComponent = ({
         savedBudget,
         treatmentPlan: treatmentPlanResponse?.data || null,
         definitiveDiagnosis: definitiveDiagnosisResponse?.data || null,
-        radiographyRequest: radiographyResponse || null,
+        radiographyRequests: Array.isArray(radiographyResponse) ? radiographyResponse : [],
         loading: false,
         error: null,
         saving: false
@@ -492,7 +493,29 @@ const BudgetStepComponent = ({
   const savedBudget = budgetData.savedBudget;
   const treatmentPlan = budgetData.treatmentPlan;
   const definitiveDiagnosis = budgetData.definitiveDiagnosis;
-  const radiographyRequest = budgetData.radiographyRequest;
+  const radiographyRequests = budgetData.radiographyRequests;
+
+  // Fusiona los campos booleanos de un conjunto de objetos (OR lógico) y concatena arrays.
+  // Se usa para consolidar la selección de exámenes cuando la consulta tiene N solicitudes.
+  const mergeExamSelections = <T extends Record<string, any>>(items: (T | undefined | null)[]): T | undefined => {
+    const valid = items.filter(Boolean) as T[];
+    if (valid.length === 0) return undefined;
+    const merged: Record<string, any> = {};
+    for (const it of valid) {
+      for (const [k, v] of Object.entries(it)) {
+        if (typeof v === 'boolean') {
+          merged[k] = Boolean(merged[k]) || v;
+        } else if (Array.isArray(v)) {
+          merged[k] = [...(merged[k] || []), ...v];
+        } else if (typeof v === 'number') {
+          merged[k] = Math.max(merged[k] || 0, v);
+        } else if (v !== undefined && merged[k] === undefined) {
+          merged[k] = v;
+        }
+      }
+    }
+    return merged as T;
+  };
 
   // Extraer datos del plan de tratamiento
   // FALLBACK: Si no hay datos de BD, usar datos locales de currentRecord
@@ -549,11 +572,16 @@ const BudgetStepComponent = ({
   // Usar datos de BD si existen, sino usar datos locales
   const additionalServices: AdditionalService[] = bdAdditionalServices.length > 0 ? bdAdditionalServices : mappedLocalAdditionalServices;
 
-  // Datos de examenes del paso 4 (solicitud de radiografia)
-  // FALLBACK: Si no hay datos de BD, usar datos locales de currentRecord.diagnosticPlan
-  const tomografia3D = radiographyRequest?.request_data?.tomografia3D || currentRecord?.diagnosticPlan?.tomografia3D;
-  const radiografias = radiographyRequest?.request_data?.radiografias || currentRecord?.diagnosticPlan?.radiografias;
-  const pricingBreakdown = radiographyRequest?.pricing_data?.breakdown || [];
+  // Datos de exámenes del paso 4: consolidar TODAS las solicitudes activas de la consulta.
+  // El doctor puede haber enviado varias en distintos momentos (la última pendiente se
+  // actualiza, las procesadas se conservan); el presupuesto refleja la suma de todas.
+  const tomografia3D =
+    mergeExamSelections(radiographyRequests.map(r => r.request_data?.tomografia3D)) ||
+    currentRecord?.diagnosticPlan?.tomografia3D;
+  const radiografias =
+    mergeExamSelections(radiographyRequests.map(r => r.request_data?.radiografias)) ||
+    currentRecord?.diagnosticPlan?.radiografias;
+  const pricingBreakdown = radiographyRequests.flatMap(r => r.pricing_data?.breakdown || []);
 
   // Procesar examenes para visualizacion
   const tomografiaData = processTomografia(tomografia3D);
@@ -602,12 +630,21 @@ const BudgetStepComponent = ({
   // FALLBACK: Calcular total de exámenes desde datos locales
   const localExamsTotal = currentRecord?.diagnosticPlan?.totalCost || 0;
 
-  // Total de examenes desde savedBudget o radiographyRequest o local
-  const examsTotal = savedBudget?.exams_total ||
-    radiographyRequest?.pricing_data?.finalPrice ||
-    radiographyRequest?.pricing_data?.suggestedPrice ||
-    pricingBreakdown.reduce((sum: number, item: any) => sum + (item.price || 0), 0) ||
-    localExamsTotal;
+  // Suma de precios de exámenes a través de TODAS las solicitudes activas de la consulta.
+  // Para cada solicitud se toma finalPrice (si está aprobado), en su defecto suggestedPrice,
+  // y si no existe, se calcula a partir del breakdown.
+  const radiographyTotal = radiographyRequests.reduce((sum: number, req) => {
+    const finalPrice = Number(req?.pricing_data?.finalPrice || 0);
+    const suggested = Number(req?.pricing_data?.suggestedPrice || 0);
+    const breakdownSum = (req?.pricing_data?.breakdown || []).reduce(
+      (s: number, it: any) => s + Number(it.price || 0),
+      0
+    );
+    return sum + (finalPrice || suggested || breakdownSum);
+  }, 0);
+
+  // Total de exámenes: prioridad BD guardado > suma de solicitudes activas > total local
+  const examsTotal = savedBudget?.exams_total || radiographyTotal || localExamsTotal;
 
   // Subtotal antes del descuento
   const subtotal = definitiveDiagnosisTotal + treatmentsTotal + additionalServicesTotal + examsTotal;

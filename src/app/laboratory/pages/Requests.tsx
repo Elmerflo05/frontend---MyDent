@@ -53,6 +53,10 @@ const ImagingRequests = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showViewResultsModal, setShowViewResultsModal] = useState(false);
   const [showPriceModal, setShowPriceModal] = useState(false);
+  // Confirmación de eliminación: solicitudes 'pending' que el técnico descarta
+  // cuando el doctor envía una corregida.
+  const [deleteTarget, setDeleteTarget] = useState<ImagingRequestWithDetails | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadRequests();
@@ -258,6 +262,35 @@ const ImagingRequests = () => {
     }
   };
 
+  /**
+   * Confirma y ejecuta el soft-delete de una solicitud. El backend sólo permite el
+   * borrado cuando request_status='pending'; si no, responde 409 y se informa en UI.
+   */
+  const confirmDeleteRequest = async () => {
+    if (!deleteTarget?.id) return;
+    const requestId = parseInt(deleteTarget.id);
+    if (Number.isNaN(requestId)) {
+      toast.error('ID de solicitud inválido');
+      return;
+    }
+    try {
+      setIsDeleting(true);
+      await radiographyApi.deleteRadiographyRequest(requestId);
+      toast.success('Solicitud eliminada correctamente');
+      setDeleteTarget(null);
+      await loadRequests();
+    } catch (error: any) {
+      const status = error?.response?.status || error?.status;
+      if (status === 409) {
+        toast.error('No se puede eliminar: la solicitud ya no está pendiente');
+      } else {
+        toast.error(error?.message || 'Error al eliminar la solicitud');
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Handler para enviar contraoferta
   const handleCounterOffer = async (requestId: number, counterOfferPrice: number) => {
     try {
@@ -398,11 +431,61 @@ const ImagingRequests = () => {
                   setSelectedRequest(request);
                   setShowViewResultsModal(true);
                 }}
+                onDelete={() => setDeleteTarget(request)}
               />
             ))
           )}
         </div>
       </div>
+
+      {/* Confirmación de eliminación (solicitudes 'pending') */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4"
+          onClick={() => !isDeleting && setDeleteTarget(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              ¿Eliminar esta solicitud?
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Se eliminará la solicitud del paciente{' '}
+              <span className="font-medium">{deleteTarget.patientName || 'sin nombre'}</span>
+              {' '}del{' '}
+              <span className="font-medium">
+                {new Date(deleteTarget.date).toLocaleDateString('es-PE', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric'
+                })}
+              </span>
+              . Esta acción no puede deshacerse.
+            </p>
+            <p className="text-xs text-gray-500 mb-6">
+              Solo se pueden eliminar solicitudes en estado pendiente. Si ya empezaste a procesarla, no podrá eliminarse.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDeleteRequest}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {isDeleting ? 'Eliminando…' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Details Modal */}
       {selectedRequest && (

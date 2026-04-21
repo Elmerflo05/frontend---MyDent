@@ -1,4 +1,4 @@
-import { User, Calendar, Clock, Eye, Printer, DollarSign, Upload } from 'lucide-react';
+import { User, Calendar, Clock, Eye, Printer, DollarSign, Upload, Trash2 } from 'lucide-react';
 import type { Appointment } from '@/types';
 import { getImagingStudyTypes, getStudyStatus } from './constants';
 
@@ -7,6 +7,11 @@ interface ImagingRequestWithDetails extends Appointment {
   doctorName?: string;
   radiographyData?: any;
 }
+
+// Roles con permiso para eliminar solicitudes pendientes (cliente externo excluido).
+const DELETE_ALLOWED_ROLES = ['super_admin', 'admin', 'imaging_technician'];
+// Único estado en el que el backend permite el soft-delete.
+const DELETABLE_STATUS = 'pending';
 
 interface RequestCardProps {
   request: ImagingRequestWithDetails;
@@ -19,6 +24,7 @@ interface RequestCardProps {
   onSetPrice: () => void;
   onUploadResults: () => void;
   onViewResults: () => void;
+  onDelete?: () => void;
 }
 
 export const RequestCard = ({
@@ -31,7 +37,8 @@ export const RequestCard = ({
   onPrint,
   onSetPrice,
   onUploadResults,
-  onViewResults
+  onViewResults,
+  onDelete
 }: RequestCardProps) => {
   const IMAGING_STUDY_TYPES = getImagingStudyTypes(useCyanTheme);
   const STUDY_STATUS = getStudyStatus(useCyanTheme);
@@ -285,6 +292,21 @@ export const RequestCard = ({
                 <Eye className="w-4 h-4" />
               </button>
             )}
+
+            {/* Eliminar - solo solicitudes pendientes, roles autorizados.
+                Permite descartar una solicitud equivocada cuando el doctor envió una corregida. */}
+            {onDelete &&
+              userRole &&
+              DELETE_ALLOWED_ROLES.includes(userRole) &&
+              request.imagingStudy?.studyStatus === DELETABLE_STATUS && (
+                <button
+                  onClick={onDelete}
+                  className="p-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                  title="Eliminar solicitud pendiente"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
           </div>
 
           {/* Mostrar precio si está aprobado */}
