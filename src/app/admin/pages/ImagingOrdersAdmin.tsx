@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { ClipboardList, Filter, Download, RotateCcw, Eye, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -558,7 +559,7 @@ const OrderDetailModal = ({ order, onClose, onReactivate, isReactivating, getSel
     || '—';
   const patientDni = order.identification_number || patientFromRD.dni || '';
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4"
       onClick={onClose}
@@ -752,7 +753,8 @@ const OrderDetailModal = ({ order, onClose, onReactivate, isReactivating, getSel
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
