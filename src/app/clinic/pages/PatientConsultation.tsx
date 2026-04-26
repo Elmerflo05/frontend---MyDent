@@ -8,6 +8,7 @@ import {
 
 // Componentes de Planes de Salud
 import { PatientHealthPlanBadge } from '@/components/health-plans';
+import { SelectionStickyBar } from '@/components/consultation/SelectionStickyBar';
 import { CoverageSummary } from '@/services/api/pricingApi';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
@@ -49,7 +50,7 @@ import { useOdontogramDiagnosis } from '../hooks/useOdontogramDiagnosis';
 import { saveConsultationProgress, saveConsultationTreatmentPlan, loadConsultationTreatmentPlan } from '../services/consultationService';
 
 // Import utilities
-import { consultationSteps, formatPatientOptions, isStepAccessible } from '../utils/consultationHelpers';
+import { consultationSteps, isStepAccessible } from '../utils/consultationHelpers';
 
 const PatientConsultation = () => {
   const [searchParams] = useSearchParams();
@@ -62,7 +63,7 @@ const PatientConsultation = () => {
   const readOnlyMode = isReceptionist;
 
   // Store hooks
-  const { patients, getPatientById, searchPatients, addPatient, setPatients, clearPatients } = usePatientStore();
+  const { patients, getPatientById, addPatient, setPatients, clearPatients } = usePatientStore();
   const { setPatientOdontogram, getPatientOdontogram } = useOdontogramStore();
   const { createTreatment, updateTreatment, getTreatmentsByPatient } = useTreatmentStore();
   const { createRecord, updateRecord, getLatestRecordByPatient } = useMedicalRecordStore();
@@ -72,18 +73,12 @@ const PatientConsultation = () => {
   const {
     selectedPatient,
     setSelectedPatient,
-    searchTerm,
-    setSearchTerm,
     activeStep,
     setActiveStep,
     completedSteps,
     setCompletedSteps,
-    showPatientSearch,
-    setShowPatientSearch,
     unsavedChanges,
     setUnsavedChanges,
-    recentPatients,
-    setRecentPatients,
     isSaving,
     setIsSaving,
     symptoms,
@@ -239,12 +234,6 @@ const PatientConsultation = () => {
     loadPatientsFromApi();
   }, []);
 
-  // Obtener pacientes recientes
-  useEffect(() => {
-    const recent = patients.slice(0, 5);
-    setRecentPatients(recent);
-  }, [patients]);
-
   // Cargar paciente desde API si se proporciona ID
   const loadPatientFromDatabase = async (patientId: string) => {
     try {
@@ -339,7 +328,6 @@ const PatientConsultation = () => {
   const handlePatientSelection = useCallback(async (patient: any) => {
     try {
       setSelectedPatient(patient);
-      setShowPatientSearch(false);
 
       const patientIdNumeric = parseInt(patient.id, 10);
 
@@ -579,7 +567,6 @@ const PatientConsultation = () => {
   }, [
     user?.dentist_id,
     setSelectedPatient,
-    setShowPatientSearch,
     setCurrentRecord,
     setCurrentTreatment,
     setCurrentOdontogram,
@@ -800,27 +787,18 @@ const PatientConsultation = () => {
     resetConsultationState();
   };
 
-  // Preparar opciones para el combobox
-  const patientOptions = useMemo(() => formatPatientOptions(patients), [patients]);
-
-  // Filtrar pacientes por búsqueda
-  const filteredPatients = searchTerm
-    ? searchPatients(searchTerm)
-    : patients.slice(0, 10);
-
   // Renderizar contenido del paso actual - memoizado para evitar re-renders
   const stepContent = useMemo(() => {
     switch (activeStep) {
       case 0:
         return (
           <PatientSelectionStep
-            patientOptions={patientOptions}
+            patients={patients}
             selectedPatient={selectedPatient}
-            handlePatientSelection={handlePatientSelection}
             selectedAppointment={selectedAppointment}
+            onPatientSelect={handlePatientSelection}
             onAppointmentSelect={handleAppointmentSelect}
             user={user}
-            markStepCompleted={markStepCompleted}
           />
         );
 
@@ -1027,7 +1005,7 @@ const PatientConsultation = () => {
     selectedPatient,
     currentRecord,
     currentOdontogram,
-    patientOptions,
+    patients,
     selectedAppointment,
     prescriptionMedications,
     treatmentObservations,
@@ -1080,7 +1058,7 @@ const PatientConsultation = () => {
   ]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-6 pb-24">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -1095,7 +1073,7 @@ const PatientConsultation = () => {
 
         {selectedPatient && (
           <div className="mb-6 space-y-3">
-            {/* Informacion del paciente */}
+            {/* Información del paciente */}
             <div className="p-4 bg-clinic-light rounded-xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -1107,7 +1085,6 @@ const PatientConsultation = () => {
                       <p className="font-semibold text-gray-900">
                         {selectedPatient.firstName} {selectedPatient.lastName}
                       </p>
-                      {/* Badge compacto del plan de salud */}
                       <PatientHealthPlanBadge
                         patientId={selectedPatient.id}
                         onPlanLoaded={handlePlanLoaded}
@@ -1133,7 +1110,6 @@ const PatientConsultation = () => {
             </div>
 
             {/* Banner del plan de salud (detallado) - solo si tiene plan */}
-            {/* OPTIMIZACIÓN: Usa datos pre-cargados para evitar fetch duplicado */}
             {hasHealthPlan && patientCoverage && (
               <PatientHealthPlanBadge
                 patientId={selectedPatient.id}
@@ -1202,6 +1178,20 @@ const PatientConsultation = () => {
           {stepContent}
         </motion.div>
       </motion.div>
+
+      {activeStep === 0 && (
+        <SelectionStickyBar
+          selectedPatient={selectedPatient}
+          selectedAppointment={selectedAppointment}
+          visible={Boolean(selectedPatient || selectedAppointment)}
+          onChange={() => {
+            setSelectedPatient(null);
+            setSelectedAppointment(null);
+            setCompletedSteps(new Set());
+          }}
+          onContinue={() => markStepCompleted(0)}
+        />
+      )}
 
       {/* Modal de Guardado Exitoso */}
       <AnimatePresence>

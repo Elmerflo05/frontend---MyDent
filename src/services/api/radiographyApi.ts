@@ -398,16 +398,64 @@ class RadiographyApiService {
   }
 
   /**
-   * Elimina una solicitud de radiografía
+   * Rechaza una solicitud de radiografía (acción del técnico).
+   * Acepta motivo opcional. La orden permanece visible con request_status='rejected_by_technician'
+   * para que el doctor la vea y reenvíe otra.
    */
-  async deleteRadiographyRequest(requestId: number): Promise<ApiResponse> {
+  async deleteRadiographyRequest(requestId: number, reason?: string): Promise<ApiResponse> {
     try {
-      const response = await httpClient.delete(`/radiography/${requestId}`);
+      const response = await httpClient.delete(
+        `/radiography/${requestId}`,
+        reason ? { body: { reason } } : undefined
+      );
 
       if (!response.success) {
-        throw new Error(response.message || 'Error al eliminar solicitud de radiografía');
+        throw new Error(response.message || 'Error al rechazar solicitud de radiografía');
       }
 
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Reactiva una solicitud rechazada por el técnico (super_admin / admin).
+   */
+  async reactivateRadiographyRequest(requestId: number): Promise<ApiResponse> {
+    try {
+      const response = await httpClient.post(`/radiography/${requestId}/reactivate`);
+      if (!response.success) {
+        throw new Error(response.message || 'Error al reactivar solicitud');
+      }
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Listado de órdenes para panel SA (super_admin / admin).
+   */
+  async getAllOrdersForAdmin(filters?: {
+    branch_id?: number;
+    dentist_id?: number;
+    request_status?: string;
+    date_from?: string;
+    date_to?: string;
+    limit?: number;
+  }): Promise<ApiResponse<RadiographyRequestData[]> & { statusLabels?: Record<string, string>; total?: number }> {
+    try {
+      const params = new URLSearchParams();
+      if (filters?.branch_id) params.append('branch_id', filters.branch_id.toString());
+      if (filters?.dentist_id) params.append('dentist_id', filters.dentist_id.toString());
+      if (filters?.request_status) params.append('request_status', filters.request_status);
+      if (filters?.date_from) params.append('date_from', filters.date_from);
+      if (filters?.date_to) params.append('date_to', filters.date_to);
+      if (filters?.limit) params.append('limit', filters.limit.toString());
+      const qs = params.toString();
+      const endpoint = `/radiography/admin/orders${qs ? `?${qs}` : ''}`;
+      const response = await httpClient.get<any>(endpoint);
       return response;
     } catch (error) {
       throw error;

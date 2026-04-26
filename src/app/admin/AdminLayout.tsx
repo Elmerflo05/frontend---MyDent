@@ -80,7 +80,8 @@ const AdminLayout = () => {
         title: 'SERVICIOS',
         items: [
           { path: '/admin/laboratory-services', label: 'Servicios de Laboratorio', icon: TestTube, roles: ['super_admin'] },
-          { path: '/admin/laboratory-requests', label: 'Solicitudes de Laboratorio', icon: ClipboardList, roles: ['super_admin'] }
+          { path: '/admin/laboratory-requests', label: 'Solicitudes de Laboratorio', icon: ClipboardList, roles: ['super_admin'] },
+          { path: '/admin/imaging-orders', label: 'Órdenes de Imágenes', icon: ClipboardList, roles: ['super_admin', 'admin'] }
         ]
       },
       {

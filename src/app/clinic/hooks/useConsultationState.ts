@@ -8,12 +8,9 @@ import { Medication } from '@/components/consultation/steps/PrescriptionStep';
 export const useConsultationState = (userId?: string) => {
   // Estados de UI
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [activeStep, setActiveStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState(new Set<number>());
-  const [showPatientSearch, setShowPatientSearch] = useState(true);
   const [unsavedChanges, setUnsavedChanges] = useState(false);
-  const [recentPatients, setRecentPatients] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   // Estados para síntomas y medicamentos dinámicos
@@ -196,7 +193,6 @@ export const useConsultationState = (userId?: string) => {
     setCurrentOdontogram([]);
     setCompletedSteps(new Set());
     setActiveStep(0);
-    setShowPatientSearch(true);
     setSymptoms(['']);
     setMedications(['']);
     setPrescriptionMedications([]);
@@ -207,18 +203,12 @@ export const useConsultationState = (userId?: string) => {
     // Estados de UI
     selectedPatient,
     setSelectedPatient,
-    searchTerm,
-    setSearchTerm,
     activeStep,
     setActiveStep,
     completedSteps,
     setCompletedSteps,
-    showPatientSearch,
-    setShowPatientSearch,
     unsavedChanges,
     setUnsavedChanges,
-    recentPatients,
-    setRecentPatients,
     isSaving,
     setIsSaving,
 

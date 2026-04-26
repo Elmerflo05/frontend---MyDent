@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Edit, CheckCircle, Play, X, User, Stethoscope, FileText, Calendar, RefreshCcw } from 'lucide-react';
 import { APPOINTMENT_STATUS_CONFIG } from '@/constants/appointments';
-import { SPECIALTIES } from './constants';
+import { getSpecialtyConfigFromAppointment } from './constants';
 import type { Appointment } from '@/types';
 import { createPortal } from 'react-dom';
 
@@ -181,7 +181,7 @@ export const DayAppointmentsModal = ({
                           <div>
                             <p className="text-xs text-gray-500 font-medium">Especialidad</p>
                             <p className="text-sm text-gray-900 font-semibold">
-                              {SPECIALTIES[(appointment as any).specialty]?.label || 'General'}
+                              {getSpecialtyConfigFromAppointment(appointment).label}
                             </p>
                           </div>
                         </div>

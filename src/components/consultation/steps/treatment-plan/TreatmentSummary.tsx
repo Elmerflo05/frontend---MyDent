@@ -132,7 +132,7 @@ export const TreatmentSummary: React.FC<TreatmentSummaryProps> = ({
                       <div className="flex items-center justify-center gap-1">
                         <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
                         <span className="text-base font-bold text-emerald-600">
-                          {formatCurrency(selectedProcPrice || 0)}
+                          {formatCurrency(displayPrice)}
                         </span>
                       </div>
                       <div className="mt-1">

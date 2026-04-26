@@ -44,6 +44,7 @@ const PatientOdontogram = lazyWithRetry(() => import('@/app/patient/pages/Odonto
 const PatientExternalExams = lazyWithRetry(() => import('@/app/patient/pages/ExternalExams'));
 const PatientPromotions = lazyWithRetry(() => import('@/app/patient/pages/Promotions'));
 const PatientContracts = lazyWithRetry(() => import('@/app/patient/pages/Contracts'));
+const PatientDocuments = lazyWithRetry(() => import('@/app/patient/pages/Documents'));
 const PatientHealthPlans = lazyWithRetry(() => import('@/app/patient/pages/HealthPlans'));
 const HealthPlanSubscription = lazyWithRetry(() => import('@/app/patient/pages/HealthPlanSubscription'));
 const MyHealthPlan = lazyWithRetry(() => import('@/app/patient/pages/MyHealthPlan'));
@@ -60,6 +61,7 @@ const AdminPatients = lazyWithRetry(() => import('@/app/admin/pages/Patients'));
 const CreatePatient = lazyWithRetry(() => import('@/app/admin/pages/CreatePatient'));
 const AdminLaboratoryServices = lazyWithRetry(() => import('@/app/admin/pages/LaboratoryServices'));
 const AdminLaboratoryRequests = lazyWithRetry(() => import('@/app/admin/pages/LaboratoryRequests'));
+const AdminImagingOrders = lazyWithRetry(() => import('@/app/admin/pages/ImagingOrdersAdmin'));
 const AdminSettings = lazyWithRetry(() => import('@/app/admin/pages/Settings'));
 const AdminReports = lazyWithRetry(() => import('@/app/admin/pages/Reports'));
 const AdminOdontogramConfig = lazyWithRetry(() => import('@/app/admin/pages/OdontogramConfig'));
@@ -528,6 +530,16 @@ export const router = createBrowserRouter([
         )
       },
       {
+        path: 'imaging-orders',
+        element: (
+          <ProtectedRoute requiredRoles={['super_admin', 'admin']}>
+            <LazyWrapper>
+              <AdminImagingOrders />
+            </LazyWrapper>
+          </ProtectedRoute>
+        )
+      },
+      {
         path: 'settings',
         element: (
           <LazyWrapper>
@@ -764,6 +776,14 @@ export const router = createBrowserRouter([
         )
       },
       {
+        path: 'documents',
+        element: (
+          <LazyWrapper>
+            <PatientDocuments />
+          </LazyWrapper>
+        )
+      },
+      {
         path: 'health-plans',
         element: (
           <LazyWrapper>
@@ -838,6 +858,7 @@ export const routeConfig = {
     { path: '/patient/treatments', label: 'Tratamientos', icon: 'Activity' },
     { path: '/patient/external-exams', label: 'Examenes Externos', icon: 'TestTube' },
     { path: '/patient/contracts', label: 'Mis Contratos', icon: 'FileText' },
+    { path: '/patient/documents', label: 'Mis Documentos', icon: 'FolderOpen' },
     { path: '/patient/formularios-publicos', label: 'Mis Consentimientos', icon: 'FileCheck' },
     { path: '/patient/billing', label: 'Facturacion', icon: 'CreditCard' },
     { path: '/patient/profile', label: 'Mi Perfil', icon: 'User' }

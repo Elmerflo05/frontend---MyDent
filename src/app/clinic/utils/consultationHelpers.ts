@@ -1,4 +1,3 @@
-import type { Patient } from '@/types';
 import {
   User,
   Stethoscope,
@@ -41,19 +40,6 @@ export const consultationSteps: ConsultationStep[] = [
   { id: 10, label: 'Tratamiento Realizado', icon: Activity, completed: false },
   { id: 11, label: 'Laboratorio de Prótesis', icon: TestTube, completed: false }
 ];
-
-/**
- * Formatea la lista de pacientes para el componente Combobox
- */
-export const formatPatientOptions = (patients: Patient[]) => {
-  return patients.map(patient => ({
-    value: patient.id,
-    label: `${patient.firstName} ${patient.lastName}`,
-    sublabel: `${patient.documentType}: ${patient.documentNumber}`,
-    description: `Tel: ${patient.phone} | Email: ${patient.email}`,
-    data: patient
-  }));
-};
 
 /**
  * Valida si un paso de consulta puede ser marcado como completado

@@ -1,18 +1,16 @@
-import { Calendar, RefreshCcw } from 'lucide-react';
+import { RefreshCcw } from 'lucide-react';
 import { APPOINTMENT_STATUS_CONFIG } from '@/constants/appointments';
-import { SPECIALTIES, getSpecialtyFromDoctor } from './constants';
-import type { Appointment, User as UserType } from '@/types';
+import { getSpecialtyConfigFromAppointment } from './constants';
+import type { Appointment } from '@/types';
 
 interface WeekCalendarViewProps {
   weekDays: { date: Date; appointments: Appointment[] }[];
-  doctors: UserType[];
   getPatientName: (patientId: string) => string;
   onAppointmentClick: (appointment: Appointment) => void;
 }
 
 export const WeekCalendarView = ({
   weekDays,
-  doctors,
   getPatientName,
   onAppointmentClick
 }: WeekCalendarViewProps) => {
@@ -36,9 +34,8 @@ export const WeekCalendarView = ({
 
             <div className="space-y-1 min-h-96">
               {appointments.map(appointment => {
-                // DERIVAR SPECIALTY DEL DOCTOR (dentro del componente)
-                const specialtyKey = getSpecialtyFromDoctor(appointment.doctorId, doctors);
-                const specialtyConfig = SPECIALTIES[specialtyKey];
+                // Usar la especialidad REAL registrada en la cita (specialty_name)
+                const specialtyConfig = getSpecialtyConfigFromAppointment(appointment);
 
                 // ✅ CORREGIDO: Usar colores del ESTADO en lugar de especialidad
                 // Las citas canceladas se muestran en ROJO

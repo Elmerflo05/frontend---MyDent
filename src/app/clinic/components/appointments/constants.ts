@@ -48,3 +48,46 @@ export const getSpecialtyFromDoctor = (doctorId: string, doctors: any[]): keyof 
 
   return mapDoctorSpecialtyToKey(doctorSpecialty);
 };
+
+// Shape devuelto por getSpecialtyConfigFromAppointment (acepta especialidades de BD
+// que no estén en el enum hardcodeado SPECIALTIES — etiqueta libre)
+export interface SpecialtyConfig {
+  label: string;
+  icon: typeof Stethoscope;
+  color: string;
+}
+
+// Resuelve la especialidad REAL registrada en la cita (specialty_name desde BD).
+// Acepta tanto claves del enum SPECIALTIES (legacy) como nombres humanos
+// ("Implantes", "Periodoncia", "Odontología General", etc.). Si la especialidad
+// no coincide con el enum, devuelve un config genérico con el nombre real.
+export const getSpecialtyConfigFromAppointment = (appointment: any): SpecialtyConfig => {
+  const raw = appointment?.specialty || appointment?.specialty_name || '';
+
+  if (!raw) {
+    return { label: 'Sin especialidad', icon: Stethoscope, color: 'bg-slate-100 text-slate-700' };
+  }
+
+  // Caso 1: ya es una clave del enum (e.g. 'general', 'orthodontics')
+  if (Object.prototype.hasOwnProperty.call(SPECIALTIES, raw)) {
+    return SPECIALTIES[raw as keyof typeof SPECIALTIES];
+  }
+
+  // Caso 2: es un nombre humano del enum (e.g. 'Odontología General')
+  const specialtyMap: Record<string, keyof typeof SPECIALTIES> = {
+    'Odontología General': 'general',
+    'Ortodoncia': 'orthodontics',
+    'Odontopediatría': 'pediatric',
+    'Cirugía Oral': 'surgery',
+    'Estética Dental': 'cosmetic',
+    'Endodoncia': 'endodontics'
+  };
+  const enumKey = specialtyMap[raw];
+  if (enumKey) {
+    return SPECIALTIES[enumKey];
+  }
+
+  // Caso 3: especialidad real de BD no representada en el enum (e.g. "Implantes").
+  // Mostrar el nombre tal cual con un estilo neutro.
+  return { label: raw, icon: Stethoscope, color: 'bg-blue-50 text-blue-700' };
+};

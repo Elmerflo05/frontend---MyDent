@@ -1,13 +1,12 @@
 import { ChevronLeft, ChevronRight, RefreshCcw } from 'lucide-react';
 import { APPOINTMENT_STATUS_CONFIG } from '@/constants/appointments';
-import { SPECIALTIES, getSpecialtyFromDoctor } from './constants';
-import type { Appointment, User as UserType } from '@/types';
+import { getSpecialtyConfigFromAppointment } from './constants';
+import type { Appointment } from '@/types';
 
 interface MonthCalendarViewProps {
   currentDate: Date;
   calendarDays: (number | null)[];
   filteredAppointments: Appointment[];
-  doctors: UserType[];
   getPatientName: (patientId: string) => string;
   onDayClick: (day: number) => void;
   onAppointmentClick: (appointment: Appointment) => void;
@@ -18,7 +17,6 @@ export const MonthCalendarView = ({
   currentDate,
   calendarDays,
   filteredAppointments,
-  doctors,
   getPatientName,
   onDayClick,
   onAppointmentClick,
@@ -98,9 +96,8 @@ export const MonthCalendarView = ({
 
                   <div className="space-y-1">
                     {dayAppointments.slice(0, 3).map(appointment => {
-                      // DERIVAR SPECIALTY DEL DOCTOR AQUÍ (dentro del componente)
-                      const specialtyKey = getSpecialtyFromDoctor(appointment.doctorId, doctors);
-                      const specialtyConfig = SPECIALTIES[specialtyKey];
+                      // Usar la especialidad REAL registrada en la cita (specialty_name)
+                      const specialtyConfig = getSpecialtyConfigFromAppointment(appointment);
 
                       // ✅ CORREGIDO: Usar colores del ESTADO en lugar de especialidad
                       // Las citas canceladas se muestran en ROJO

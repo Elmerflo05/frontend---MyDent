@@ -49,7 +49,6 @@ interface PatientStore {
   updatePatient: (id: string, updates: Partial<Patient>) => void;
   deletePatient: (id: string) => void;
   getPatientById: (id: string) => Patient | undefined;
-  searchPatients: (query: string) => Patient[];
   setCurrentPatient: (patient: Patient | null) => void;
 
   getTotalPatients: () => number;
@@ -104,16 +103,6 @@ export const usePatientStore = create<PatientStore>()((set, get) => ({
 
   getPatientById: (id) => {
     return get().patients.find(patient => patient.id === id);
-  },
-
-  searchPatients: (query) => {
-    const lowercaseQuery = query.toLowerCase();
-    return get().patients.filter(patient =>
-      patient.firstName.toLowerCase().includes(lowercaseQuery) ||
-      patient.lastName.toLowerCase().includes(lowercaseQuery) ||
-      patient.documentNumber.includes(lowercaseQuery) ||
-      patient.email.toLowerCase().includes(lowercaseQuery)
-    );
   },
 
   setCurrentPatient: (patient) => {

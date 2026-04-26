@@ -6,7 +6,7 @@
  */
 
 // Steps refactorizados
-export { PatientSelectionStep } from './PatientSelectionStep';
+export { PatientSelectionStepV2 as PatientSelectionStep } from './PatientSelectionStepV2';
 export { ClinicalExamStep } from './ClinicalExamStep';
 export { OdontogramStep } from './OdontogramStep';
 export { PresumptiveDiagnosisStep } from './PresumptiveDiagnosisStep';

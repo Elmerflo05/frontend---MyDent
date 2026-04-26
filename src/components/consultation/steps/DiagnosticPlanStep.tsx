@@ -21,8 +21,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
-import { radiographyRequestsApi } from '@/services/api/radiographyRequestsApi';
+import { radiographyRequestsApi, type RadiographyRequestData } from '@/services/api/radiographyRequestsApi';
 import { dentistsApi, type DentistData } from '@/services/api/dentistsApi';
+import { isRejectedByTechnician } from '@/constants/radiographyStatus';
 
 // Componentes unificados
 import {
@@ -158,6 +159,10 @@ const DiagnosticPlanStepComponent = ({
   // Estado para datos del dentista (COP, especialidad)
   const [dentistData, setDentistData] = useState<DentistData | null>(null);
 
+  // Última solicitud RECHAZADA por el técnico para esta consulta — se muestra como
+  // banner para que el doctor vea que su solicitud previa no fue procesada.
+  const [latestRejected, setLatestRejected] = useState<RadiographyRequestData | null>(null);
+
   // Guardia anti-clic-doble. Si un save está en curso, descartamos nuevos disparos
   // hasta que termine. Evita crear 2 registros cuando el usuario hace clic rápido
   // en "Guardar" dentro de Tomografía y luego en Radiografías (o viceversa).
@@ -177,6 +182,36 @@ const DiagnosticPlanStepComponent = ({
     };
     loadDentistData();
   }, [user?.dentist_id]);
+
+  // Cargar la última solicitud rechazada por técnico para esta consulta.
+  // Si existe, mostramos un banner explicando al doctor que reenvíe.
+  useEffect(() => {
+    const consultationId = currentRecord?.consultationId || currentRecord?.consultation_id;
+    if (!consultationId) {
+      setLatestRejected(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await radiographyRequestsApi.getRequestsByConsultation(consultationId);
+        if (cancelled) return;
+        // La lista viene ordenada DESC por date_time_registration. Buscamos la última
+        // que sea rechazada PERO sólo si no hay ninguna 'pending' posterior creada
+        // (en cuyo caso ya se reenvió y el banner deja de tener sentido).
+        const firstNotRejected = list.find(r => !isRejectedByTechnician(r.request_status as string));
+        const firstRejected = list.find(r => isRejectedByTechnician(r.request_status as string));
+        // Si hay rechazada y NO hay otra activa más reciente, mostramos el banner.
+        const showBanner = firstRejected && (!firstNotRejected ||
+          (new Date(firstRejected.date_time_registration || 0) > new Date(firstNotRejected.date_time_registration || 0))
+        );
+        setLatestRejected(showBanner ? firstRejected : null);
+      } catch {
+        if (!cancelled) setLatestRejected(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentRecord?.consultationId, currentRecord?.consultation_id, currentRecord?.radiography_request_id]);
 
   // Cargar precios desde la API
   const tomografiaPricing = useTomografia3DPricing();
@@ -327,9 +362,14 @@ const DiagnosticPlanStepComponent = ({
       // radiography_request_id se envía como "hint" cuando ya tenemos uno de un save
       // previo en esta misma sesión. Permite que el BE localice el registro aun cuando
       // la consulta (consultation_id) todavía no existiera al momento del primer save.
+      // Si la última solicitud está rechazada, NO enviamos el hint del id —
+      // el backend hace INSERT nuevo limpio.
+      const hintRequestId = latestRejected
+        ? null
+        : (currentRecord.radiography_request_id || currentRecord.radiographyRequestId || null);
+
       const requestPayload = {
-        radiography_request_id:
-          currentRecord.radiography_request_id || currentRecord.radiographyRequestId || null,
+        radiography_request_id: hintRequestId,
         patient_id: patient.patient_id || patient.id,
         dentist_id: user.dentist_id || user.id,
         branch_id: user.branch_id || user.profile?.branch_id || 1,
@@ -358,6 +398,11 @@ const DiagnosticPlanStepComponent = ({
           ...prev,
           radiography_request_id: response.data.radiography_request_id
         }));
+
+        // Si veníamos de una rechazada, el reenvío crea una nueva — limpiamos el banner.
+        if (latestRejected) {
+          setLatestRejected(null);
+        }
 
         // El servidor decide: si la última solicitud de la consulta sigue en
         // 'pending' la actualiza; si ya fue procesada o no existe, crea una nueva.
@@ -415,6 +460,25 @@ const DiagnosticPlanStepComponent = ({
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
           <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           <span className="text-blue-700">Cargando precios configurados...</span>
+        </div>
+      )}
+
+      {/* Banner de solicitud rechazada por el técnico */}
+      {latestRejected && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+          <div className="text-sm text-red-800 flex-1">
+            <p className="font-semibold">Tu solicitud anterior fue rechazada por el técnico de imágenes</p>
+            {latestRejected.rejection_reason && (
+              <p className="mt-1"><span className="font-medium">Motivo:</span> {latestRejected.rejection_reason}</p>
+            )}
+            {latestRejected.rejected_by_name && latestRejected.rejected_at && (
+              <p className="mt-1 text-xs text-red-700">
+                Rechazada por {latestRejected.rejected_by_name} el {new Date(latestRejected.rejected_at).toLocaleString('es-PE', { timeZone: 'America/Lima' })}
+              </p>
+            )}
+            <p className="mt-2">Tus selecciones siguen guardadas. Puedes ajustar los exámenes y volver a enviar la solicitud al técnico.</p>
+          </div>
         </div>
       )}
 

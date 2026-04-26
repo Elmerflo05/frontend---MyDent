@@ -293,15 +293,6 @@ class ConsentsApiService {
   }
 
   private mapSignedConsentToFrontend(consent: SignedConsentApi): SignedConsent {
-    // ====== LOGS DE DIAGNÓSTICO DE FECHA ======
-    console.log('📅 [consentsApiService] MAPEO DE FECHA - ENTRADA:', {
-      consent_date_raw: consent.consent_date,
-      tipo_consent_date_raw: typeof consent.consent_date,
-      signed_consent_id: consent.signed_consent_id,
-      patient_name: consent.patient_name
-    });
-
-    // Extraer información del signed_by (formato: "Paciente: nombre | Doctor: nombre COP: cop")
     let doctorNombre = '';
     let doctorCop = '';
 
@@ -313,12 +304,11 @@ class ConsentsApiService {
       }
     }
 
-    // Si hay witness_name, usarlo como nombre del doctor
     if (consent.witness_name) {
       doctorNombre = consent.witness_name;
     }
 
-    const resultado = {
+    return {
       id: consent.signed_consent_id.toString(),
       pacienteId: consent.patient_id.toString(),
       consentimientoId: consent.consent_template_id.toString(),
@@ -336,13 +326,6 @@ class ConsentsApiService {
       estado: consent.status,
       createdAt: new Date(consent.date_time_registration)
     };
-
-    console.log('📅 [consentsApiService] MAPEO DE FECHA - SALIDA:', {
-      fechaConsentimiento_mapeada: resultado.fechaConsentimiento,
-      tipo_fechaConsentimiento: typeof resultado.fechaConsentimiento
-    });
-
-    return resultado;
   }
 }
 

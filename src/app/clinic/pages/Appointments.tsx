@@ -14,7 +14,6 @@ import { APPOINTMENT_STATUS_CONFIG } from '@/constants/appointments';
 import type { Appointment, Patient, User as UserType } from '@/types';
 
 // Importar componentes modulares
-import { SPECIALTIES } from '../components/appointments/constants';
 import { CalendarHeader } from '../components/appointments/CalendarHeader';
 import { AppointmentStatsCards } from '../components/appointments/AppointmentStatsCards';
 import { AppointmentFilters } from '../components/appointments/AppointmentFilters';
@@ -235,30 +234,12 @@ const Appointments = () => {
       // Las citas pendientes SÍ deben aparecer (en amarillo)
       const activeAppointmentsData = appointmentsData.filter(appointment => appointment.status !== 'rejected');
 
-      // Enhanced appointments - DERIVAR SPECIALTY DEL DOCTOR aquí
-      const enhancedAppointments = activeAppointmentsData.map(apt => {
-        const doctor = doctorsData.find(d => d.id === apt.doctorId);
-        const doctorSpecialty = doctor?.profile?.specialties?.[0];
-
-        // Map doctor specialty to specialty key
-        const specialtyMap: Record<string, keyof typeof SPECIALTIES> = {
-          'Odontología General': 'general',
-          'Ortodoncia': 'orthodontics',
-          'Odontopediatría': 'pediatric',
-          'Cirugía Oral': 'surgery',
-          'Estética Dental': 'cosmetic',
-          'Endodoncia': 'endodontics'
-        };
-
-        const specialty = doctorSpecialty ? (specialtyMap[doctorSpecialty] || 'general') : 'general';
-
-        return {
-          ...apt,
-          specialty,
-          // duration y price ya vienen mapeados desde el backend
-          room: apt.room || `Consultorio ${Math.floor(Math.random() * 5) + 1}`
-        };
-      });
+      // Mantener la especialidad real registrada en la cita (apt.specialty viene de
+      // backendAppointment.specialty_name). Solo enriquecer datos auxiliares.
+      const enhancedAppointments = activeAppointmentsData.map(apt => ({
+        ...apt,
+        room: apt.room || `Consultorio ${Math.floor(Math.random() * 5) + 1}`
+      }));
 
       setAppointments(enhancedAppointments);
       setPatients(patientsData);
@@ -386,21 +367,12 @@ const Appointments = () => {
       }));
 
       const activeAppointmentsData = appointmentsData.filter(appointment => appointment.status !== 'rejected');
-      const enhancedAppointments = activeAppointmentsData.map(apt => {
-        const doctor = doctorsData.find(d => d.id === apt.doctorId);
-        const doctorSpecialty = doctor?.profile?.specialties?.[0];
-        const specialtyMap: Record<string, string> = {
-          'Odontología General': 'general',
-          'Ortodoncia': 'orthodontics',
-          'Odontopediatría': 'pediatric',
-          'Cirugía Oral': 'surgery',
-          'Estética Dental': 'cosmetic',
-          'Endodoncia': 'endodontics'
-        };
-        const specialty = doctorSpecialty ? (specialtyMap[doctorSpecialty] || 'general') : 'general';
-        // duration y price ya vienen mapeados desde el backend
-        return { ...apt, specialty, room: apt.room || 'Consultorio 1' };
-      });
+      // Mantener la especialidad real registrada en la cita (apt.specialty viene de
+      // backendAppointment.specialty_name). Solo enriquecer datos auxiliares.
+      const enhancedAppointments = activeAppointmentsData.map(apt => ({
+        ...apt,
+        room: apt.room || 'Consultorio 1'
+      }));
 
       setAppointments(enhancedAppointments);
       setPatients(patientsData);
@@ -982,7 +954,6 @@ const Appointments = () => {
               currentDate={currentDate}
               filteredAppointments={filteredAppointments}
               getPatientName={getPatientName}
-              doctors={doctors}
               onDayClick={handleDayClick}
               onAppointmentClick={setSelectedAppointment}
               onNavigate={navigateCalendar}
@@ -993,7 +964,6 @@ const Appointments = () => {
             <WeekCalendarView
               weekDays={getWeekAppointments()}
               getPatientName={getPatientName}
-              doctors={doctors}
               onAppointmentClick={setSelectedAppointment}
             />
           )}
@@ -1001,7 +971,6 @@ const Appointments = () => {
           {viewMode === 'day' && (
             <DayCalendarView
               appointments={getDayViewAppointments()}
-              doctors={doctors}
               getPatientInfo={getPatientInfo}
               getDoctorName={getDoctorName}
               onAppointmentClick={setSelectedAppointment}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { io, Socket } from 'socket.io-client';
 import {
   FileText,
   Calendar,
@@ -31,6 +32,7 @@ import { patientPortalApi, type IntegralConsultation, type MedicalSummary, type 
 
 // URL base del backend para cargar imagenes
 const BACKEND_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4015';
+const SOCKET_URL = BACKEND_URL;
 
 // Componentes unificados para mostrar plan diagnostico
 import {
@@ -93,26 +95,59 @@ const PatientMedicalHistory = () => {
     loadMedicalHistory();
   }, [user]);
 
-  const loadMedicalHistory = async () => {
+  // Mantener el historial sincronizado en tiempo real: si el técnico de imágenes
+  // borra/actualiza/crea una solicitud para este paciente, se refresca solo.
+  useEffect(() => {
+    const patientId = user?.profile?.patientId;
+    if (!patientId) return;
+
+    const socket: Socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    socket.on('connect', () => {
+      socket.emit('join-patient', patientId);
+    });
+
+    const onChanged = () => loadMedicalHistory({ silent: true });
+    socket.on('radiography-deleted', onChanged);
+    socket.on('radiography-updated', onChanged);
+    socket.on('radiography-created', onChanged);
+
+    return () => {
+      socket.off('radiography-deleted', onChanged);
+      socket.off('radiography-updated', onChanged);
+      socket.off('radiography-created', onChanged);
+      socket.disconnect();
+    };
+  }, [user?.profile?.patientId]);
+
+  const loadMedicalHistory = async (opts?: { silent?: boolean }) => {
     if (!user) return;
 
     try {
-      setIsLoading(true);
+      if (!opts?.silent) setIsLoading(true);
 
       // Obtener historial medico completo desde la nueva API
       const response = await patientPortalApi.getMyMedicalHistory();
 
       if (response.success && response.data) {
-        setConsultations(response.data.consultations || []);
+        const consultations = response.data.consultations || [];
+        setConsultations(consultations);
         setSummary(response.data.summary || null);
         setMedicalBackground(response.data.medical_background || null);
         setLaboratoryRadiographyRequests(response.data.laboratory_radiography_requests || []);
+
+        // Reapuntar selectedConsultation a la versión recién cargada para que
+        // los pasos expandidos (p. ej. Plan Diagnóstico) reflejen los cambios
+        // sin requerir que el paciente vuelva a tocar la consulta.
+        setSelectedConsultation((prev) => {
+          if (!prev) return prev;
+          return consultations.find(c => c.consultation_id === prev.consultation_id) || prev;
+        });
       }
     } catch (error) {
       console.error('Error al cargar historial medico:', error);
-      toast.error('Error al cargar el historial medico');
+      if (!opts?.silent) toast.error('Error al cargar el historial medico');
     } finally {
-      setIsLoading(false);
+      if (!opts?.silent) setIsLoading(false);
     }
   };
 

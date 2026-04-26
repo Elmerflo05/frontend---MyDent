@@ -4,14 +4,9 @@
  */
 
 import httpClient from './httpClient';
+import { RADIOGRAPHY_REQUEST_STATUS, type RadiographyRequestStatus as RadiographyStatusFromConstants } from '@/constants/radiographyStatus';
 
-export type RadiographyRequestStatus =
-  | 'pending'
-  | 'in_progress'
-  | 'completed'
-  | 'delivered'
-  | 'cancelled'
-  | 'no_show';
+export type RadiographyRequestStatus = RadiographyStatusFromConstants;
 
 export interface RadiographyRequestData {
   radiography_request_id?: number;
@@ -25,10 +20,14 @@ export interface RadiographyRequestData {
   area_of_interest?: string;
   clinical_indication?: string;
   urgency?: 'normal' | 'urgent' | 'emergency';
-  request_status?: RadiographyRequestStatus;
+  request_status?: RadiographyRequestStatus | string;
   date_time_registration?: string;
   date_time_modification?: string;
   notes?: string;
+  rejection_reason?: string | null;
+  rejected_by_user_id?: number | null;
+  rejected_at?: string | null;
+  rejected_by_name?: string | null;
   request_data?: {
     patientData?: {
       nombre?: string;
@@ -199,27 +198,51 @@ class RadiographyRequestsApiService {
   }
 
   /**
-   * Obtiene TODAS las solicitudes activas por consultation_id, ordenadas
-   * por date_time_registration DESC (última primero).
+   * Obtiene TODAS las solicitudes activas por consultation_id (incluye rechazadas
+   * por el técnico) ordenadas por date_time_registration DESC (última primero).
+   * Usa el endpoint dedicado /by-consultation que sí incluye rechazadas.
    */
   async getRequestsByConsultation(consultationId: number): Promise<RadiographyRequestData[]> {
     try {
-      const response = await this.getRequests({ consultation_id: consultationId, limit: 100 });
-      return response.data;
+      const response = await httpClient.get<{ success: boolean; data: RadiographyRequestData[] }>(
+        `/radiography/by-consultation/${consultationId}`
+      );
+      return response.data || [];
     } catch (error) {
       throw error;
     }
   }
 
   /**
-   * Elimina (soft-delete) una solicitud de radiografía.
+   * Rechazo (técnico) de una solicitud de radiografía. Reason opcional.
    * El backend rechaza con 409 si no está en estado 'pending'.
+   * Se mantiene el verbo DELETE por compatibilidad con la API.
    */
-  async deleteRequest(requestId: number): Promise<{ success: boolean }> {
+  async rejectRequest(requestId: number, reason?: string): Promise<{ success: boolean }> {
     try {
-      const response = await httpClient.delete<{ success: boolean }>(`/radiography/${requestId}`);
+      const response = await httpClient.delete<{ success: boolean }>(
+        `/radiography/${requestId}`,
+        reason ? { body: { reason } } : undefined
+      );
       if (!response.success) {
-        throw new Error((response as any).message || 'No se pudo eliminar la solicitud');
+        throw new Error((response as any).message || 'No se pudo rechazar la solicitud');
+      }
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Reactiva una orden rechazada (super_admin / admin).
+   */
+  async reactivateRequest(requestId: number): Promise<{ success: boolean }> {
+    try {
+      const response = await httpClient.post<{ success: boolean }>(
+        `/radiography/${requestId}/reactivate`
+      );
+      if (!response.success) {
+        throw new Error((response as any).message || 'No se pudo reactivar la solicitud');
       }
       return response;
     } catch (error) {

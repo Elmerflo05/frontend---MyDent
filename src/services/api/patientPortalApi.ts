@@ -439,6 +439,33 @@ export interface DeletePatientExternalExamResponse {
   message: string;
 }
 
+// ========================= DOCUMENTOS DEL PACIENTE =========================
+
+export interface PatientDocument {
+  patient_document_id: number;
+  patient_id: number;
+  document_type: string | null;
+  document_name: string;
+  file_path: string | null;
+  file_size: number | null;
+  mime_type: string | null;
+  upload_date: string | null;
+  description: string | null;
+  patient_name?: string;
+  identification_number?: string;
+}
+
+export interface PatientDocumentsResponse {
+  success: boolean;
+  data: PatientDocument[];
+  pagination?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 // ========================= API SERVICE =========================
 
 class PatientPortalApiService {
@@ -642,6 +669,36 @@ class PatientPortalApiService {
       return response;
     } catch (error: any) {
       console.error('[PatientPortalApi] Error en deleteExternalExam:', error);
+      throw error;
+    }
+  }
+
+  // ============================================================================
+  // DOCUMENTOS DEL PACIENTE
+  // ============================================================================
+
+  /**
+   * Obtiene los documentos del paciente logueado (filtrado por patient_id del token)
+   */
+  async getMyDocuments(params?: { document_type?: string; search?: string; limit?: number }): Promise<PatientDocumentsResponse> {
+    try {
+      const query = new URLSearchParams();
+      if (params?.document_type) query.append('document_type', params.document_type);
+      if (params?.search) query.append('search', params.search);
+      if (params?.limit) query.append('limit', String(params.limit));
+      const qs = query.toString();
+      const endpoint = `/patient-portal/my-documents${qs ? `?${qs}` : ''}`;
+
+      const response = await httpClient.get<PatientDocumentsResponse>(endpoint);
+
+      if (!response || response.success === false) {
+        const errorMsg = (response as any)?.error || 'Error al obtener documentos';
+        throw new Error(errorMsg);
+      }
+
+      return response;
+    } catch (error: any) {
+      console.error('[PatientPortalApi] Error en getMyDocuments:', error);
       throw error;
     }
   }

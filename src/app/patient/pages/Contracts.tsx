@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, Clock, CheckCircle, XCircle, Download, Eye, AlertCircle, Building, Paperclip, ExternalLink } from 'lucide-react';
+import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { contractTemplatesApi, type PatientContract } from '@/services/api/contractTemplatesApi';
@@ -8,6 +9,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4015';
 
 // Interfaz local para manejo de estado
 interface ContractDisplay {
@@ -41,6 +44,35 @@ export const Contracts = () => {
   useEffect(() => {
     loadContracts();
   }, [user]);
+
+  useEffect(() => {
+    const patientId = user?.profile?.patientId;
+    if (!patientId) return;
+
+    const socket: Socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+
+    socket.on('connect', () => {
+      socket.emit('join-patient', patientId);
+    });
+
+    const onChanged = () => loadContracts();
+    socket.on('contract-deleted', onChanged);
+    socket.on('contract-updated', onChanged);
+
+    return () => {
+      socket.off('contract-deleted', onChanged);
+      socket.off('contract-updated', onChanged);
+      socket.disconnect();
+    };
+  }, [user?.profile?.patientId]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadContracts();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [user?.profile?.patientId]);
 
   const loadContracts = async () => {
     if (!user || user.role !== 'patient') {

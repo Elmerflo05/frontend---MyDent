@@ -802,7 +802,6 @@ const AppointmentsCalendar = () => {
                 currentDate={currentDate}
                 filteredAppointments={filteredAppointments}
                 getPatientName={getPatientName}
-                doctors={doctors}
                 onDayClick={handleDayClick}
                 onAppointmentClick={setSelectedAppointment}
                 onNavigate={navigateCalendar}
@@ -813,7 +812,6 @@ const AppointmentsCalendar = () => {
               <WeekCalendarView
                 weekDays={getWeekAppointments()}
                 getPatientName={getPatientName}
-                doctors={doctors}
                 onAppointmentClick={setSelectedAppointment}
               />
             )}
@@ -821,10 +819,10 @@ const AppointmentsCalendar = () => {
             {viewMode === 'DAY' && (
               <DayCalendarView
                 appointments={getDayViewAppointments()}
-                doctors={doctors}
                 getPatientInfo={getPatientInfo}
                 getDoctorName={getDoctorName}
                 onAppointmentClick={setSelectedAppointment}
+                onStartConsultation={handleStartConsultation}
               />
             )}
           </div>

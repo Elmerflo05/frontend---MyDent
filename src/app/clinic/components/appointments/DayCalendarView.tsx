@@ -1,11 +1,10 @@
 import { Calendar, Clock, User, Phone, MapPin, Play, RefreshCcw } from 'lucide-react';
 import { APPOINTMENT_STATUS_CONFIG } from '@/constants/appointments';
-import { SPECIALTIES, getSpecialtyFromDoctor } from './constants';
-import type { Appointment, Patient, User as UserType } from '@/types';
+import { getSpecialtyConfigFromAppointment } from './constants';
+import type { Appointment, Patient } from '@/types';
 
 interface DayCalendarViewProps {
   appointments: Appointment[];
-  doctors: UserType[];
   getPatientInfo: (patientId: string) => Patient | null;
   getDoctorName: (doctorId: string) => string;
   onAppointmentClick: (appointment: Appointment) => void;
@@ -15,7 +14,6 @@ interface DayCalendarViewProps {
 
 export const DayCalendarView = ({
   appointments,
-  doctors,
   getPatientInfo,
   getDoctorName,
   onAppointmentClick,
@@ -37,9 +35,8 @@ export const DayCalendarView = ({
   return (
     <div className="space-y-2">
       {appointments.map(appointment => {
-        // DERIVAR SPECIALTY DEL DOCTOR (dentro del componente)
-        const specialtyKey = getSpecialtyFromDoctor(appointment.doctorId, doctors);
-        const specialtyConfig = SPECIALTIES[specialtyKey];
+        // Usar la especialidad REAL registrada en la cita (specialty_name)
+        const specialtyConfig = getSpecialtyConfigFromAppointment(appointment);
         const SpecialtyIcon = specialtyConfig?.icon || User;
 
         const config = APPOINTMENT_STATUS_CONFIG[appointment.status as keyof typeof APPOINTMENT_STATUS_CONFIG];

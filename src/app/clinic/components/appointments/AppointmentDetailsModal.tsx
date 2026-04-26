@@ -5,7 +5,7 @@
 
 import { CheckCircle, XCircle, Play, MessageCircle, Receipt, ExternalLink, FileText, ZoomIn, User, Stethoscope, Calendar, Clock, Phone, Mail, DollarSign, UserX, RefreshCcw, Upload, X, AlertTriangle, Ban, IdCard, Smartphone, ClipboardList, HelpCircle, Activity, Pill, FileCheck, Syringe, Building2 } from 'lucide-react';
 import { APPOINTMENT_STATUS_CONFIG } from '@/constants/appointments';
-import { SPECIALTIES } from './constants';
+import { getSpecialtyConfigFromAppointment } from './constants';
 import type { Appointment, Patient } from '@/types';
 import { useState, useMemo, useEffect } from 'react';
 import { consultationsApi, type ConsultationData } from '@/services/api/consultationsApi';
@@ -342,7 +342,8 @@ export const AppointmentDetailsModal = ({
     fetchTreatments();
   }, [consultationData?.consultation_id]);
 
-  const specialtyConfig = SPECIALTIES[(appointment as any).specialty as keyof typeof SPECIALTIES];
+  // Resolver la especialidad real registrada en la cita (specialty_name desde BD)
+  const specialtyConfig = getSpecialtyConfigFromAppointment(appointment);
   const statusConfig = APPOINTMENT_STATUS_CONFIG[appointment.status as keyof typeof APPOINTMENT_STATUS_CONFIG];
 
   // Tema basado en el estado
@@ -588,14 +589,12 @@ export const AppointmentDetailsModal = ({
                 value={getDoctorName(appointment.doctorId)}
                 theme="purple"
               />
-              {specialtyConfig && (
-                <InfoItem
-                  icon={specialtyConfig.icon}
-                  label="Especialidad"
-                  value={specialtyConfig.label}
-                  theme="purple"
-                />
-              )}
+              <InfoItem
+                icon={specialtyConfig.icon}
+                label="Especialidad"
+                value={specialtyConfig.label}
+                theme="purple"
+              />
             </div>
           </InfoCard>
 

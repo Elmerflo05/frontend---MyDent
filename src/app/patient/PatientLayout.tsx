@@ -22,7 +22,8 @@ import {
   Gift,
   Building2,
   Shield,
-  CalendarX
+  CalendarX,
+  FolderOpen
 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import { routeConfig } from '@/router';
@@ -312,7 +313,8 @@ const PatientLayout = () => {
       Gift,
       Heart,
       Building2,
-      Shield
+      Shield,
+      FolderOpen
     };
     const IconComponent = icons[iconName as keyof typeof icons];
     return IconComponent ? <IconComponent className="w-5 h-5" /> : <LayoutDashboard className="w-5 h-5" />;

@@ -5,9 +5,12 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
+import { io, Socket } from 'socket.io-client';
 import type { User } from '@/types';
 import { consentsApiService, type SignedConsent } from '@/services/api/consentsApiService';
 import { toast } from 'sonner';
+
+const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4015';
 
 export const useSignedConsents = (user: User | null) => {
   const [consents, setConsents] = useState<SignedConsent[]>([]);
@@ -18,6 +21,37 @@ export const useSignedConsents = (user: User | null) => {
   useEffect(() => {
     loadConsents();
   }, [user]);
+
+  // Sincronización en tiempo real para pacientes (eliminación lógica desde el SA)
+  useEffect(() => {
+    if (user?.role !== 'patient' || !user?.patient_id) return;
+
+    const socket: Socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+
+    socket.on('connect', () => {
+      socket.emit('join-patient', user.patient_id);
+    });
+
+    const onChanged = () => loadConsents();
+    socket.on('consent-deleted', onChanged);
+    socket.on('consent-updated', onChanged);
+
+    return () => {
+      socket.off('consent-deleted', onChanged);
+      socket.off('consent-updated', onChanged);
+      socket.disconnect();
+    };
+  }, [user?.role, user?.patient_id]);
+
+  // Refetch cuando la pestaña vuelve al foco (capturar cambios hechos durante ausencia)
+  useEffect(() => {
+    if (!user?.id) return;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadConsents();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [user?.id]);
 
   // Filtrar consentimientos localmente cuando cambia el término de búsqueda
   const filteredConsents = useMemo(() => {
@@ -45,32 +79,11 @@ export const useSignedConsents = (user: User | null) => {
       const isPatient = user.role === 'patient';
       const patientId = user.patient_id;
 
-      console.log('[useSignedConsents] Usuario:', {
-        id: user.id,
-        role: user.role,
-        patient_id: patientId,
-        isPatient,
-        willFilter: isPatient && !!patientId
-      });
-
       const params = isPatient && patientId
         ? { patient_id: patientId, limit: 100 }
         : { limit: 100 };
 
-      console.log('[useSignedConsents] Params enviados:', params);
-
       const { consents: data } = await consentsApiService.getSignedConsents(params);
-
-      // ====== LOGS DE DIAGNÓSTICO DE FECHA ======
-      console.log('📅 [useSignedConsents] FECHAS RECIBIDAS:', {
-        total_consents: data.length,
-        primeros_3: data.slice(0, 3).map(c => ({
-          id: c.id,
-          fechaConsentimiento: c.fechaConsentimiento,
-          tipo: typeof c.fechaConsentimiento
-        }))
-      });
-
       setConsents(data);
     } catch (error) {
       console.error('Error al cargar consentimientos:', error);
